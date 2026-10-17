@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Heart,
   Sparkles,
@@ -21,6 +21,9 @@ import {
   Flame,
   ChevronRight,
   ChevronLeft,
+  Wind,
+  Music,
+  Gift,
 } from 'lucide-react';
 
 // Strict Color Palette Tokens (Pink, Grey, Black only)
@@ -35,12 +38,144 @@ const CONFETTI_PALETTE = [
   '#1E1E22', // Dark slate
 ];
 
-// Offline Synthesized Audio (Whoosh, Chimes, Ambient)
+// Traditional Polish Birthday Song ("Sto lat, sto lat, niech żyje, żyje nam!")
+interface MusicNote {
+  time: number; // in beats
+  duration: number; // in beats
+  pitch: number; // Hz
+  vol?: number;
+  isBass?: boolean;
+}
+
+const C3 = 130.81, E3 = 164.81, F3 = 174.61, G3 = 196.00, A3 = 220.00, B3 = 246.94;
+const C4 = 261.63, D4 = 293.66, E4 = 329.63, F4 = 349.23, G4 = 392.00, A4 = 440.00, B4 = 493.88;
+const C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46, G5 = 783.99;
+
+const STO_LAT_SCORE: MusicNote[] = [
+  // Measure 1: "Sto lat"
+  { time: 0, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 1, duration: 1.8, pitch: E4, vol: 0.25 },
+  { time: 0, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 1, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 1, duration: 0.7, pitch: C4, vol: 0.08 },
+  { time: 2, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 2, duration: 0.7, pitch: C4, vol: 0.08 },
+
+  // Measure 2: "sto lat"
+  { time: 3, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 4, duration: 1.8, pitch: E4, vol: 0.25 },
+  { time: 3, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 4, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 4, duration: 0.7, pitch: C4, vol: 0.08 },
+  { time: 5, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 5, duration: 0.7, pitch: C4, vol: 0.08 },
+
+  // Measure 3: "niech ży-je"
+  { time: 6, duration: 0.45, pitch: G4, vol: 0.2 },
+  { time: 6.5, duration: 0.45, pitch: A4, vol: 0.22 },
+  { time: 7, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 8, duration: 0.9, pitch: F4, vol: 0.2 },
+  { time: 6, duration: 1.5, pitch: G3, vol: 0.14, isBass: true },
+  { time: 7, duration: 0.7, pitch: D4, vol: 0.08 },
+  { time: 8, duration: 0.7, pitch: D4, vol: 0.08 },
+
+  // Measure 4: "ży-je nam!"
+  { time: 9, duration: 0.9, pitch: E4, vol: 0.2 },
+  { time: 10, duration: 1.8, pitch: D4, vol: 0.24 },
+  { time: 9, duration: 1.5, pitch: G3, vol: 0.14, isBass: true },
+  { time: 10, duration: 0.7, pitch: B3, vol: 0.08 },
+  { time: 11, duration: 0.7, pitch: B3, vol: 0.08 },
+
+  // Measure 5: "Sto lat"
+  { time: 12, duration: 0.9, pitch: F4, vol: 0.22 },
+  { time: 13, duration: 1.8, pitch: D4, vol: 0.25 },
+  { time: 12, duration: 1.5, pitch: G3, vol: 0.14, isBass: true },
+  { time: 13, duration: 0.7, pitch: B3, vol: 0.08 },
+  { time: 14, duration: 0.7, pitch: B3, vol: 0.08 },
+
+  // Measure 6: "sto lat"
+  { time: 15, duration: 0.9, pitch: F4, vol: 0.22 },
+  { time: 16, duration: 1.8, pitch: D4, vol: 0.25 },
+  { time: 15, duration: 1.5, pitch: G3, vol: 0.14, isBass: true },
+  { time: 16, duration: 0.7, pitch: B3, vol: 0.08 },
+  { time: 17, duration: 0.7, pitch: B3, vol: 0.08 },
+
+  // Measure 7: "niech ży-je"
+  { time: 18, duration: 0.45, pitch: F4, vol: 0.2 },
+  { time: 18.5, duration: 0.45, pitch: G4, vol: 0.22 },
+  { time: 19, duration: 0.9, pitch: F4, vol: 0.22 },
+  { time: 20, duration: 0.9, pitch: E4, vol: 0.2 },
+  { time: 18, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 19, duration: 0.7, pitch: C4, vol: 0.08 },
+  { time: 20, duration: 0.7, pitch: C4, vol: 0.08 },
+
+  // Measure 8: "ży-je nam!"
+  { time: 21, duration: 0.9, pitch: D4, vol: 0.2 },
+  { time: 22, duration: 1.8, pitch: C4, vol: 0.26 },
+  { time: 21, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 22, duration: 0.7, pitch: E4, vol: 0.08 },
+  { time: 23, duration: 0.7, pitch: E4, vol: 0.08 },
+
+  // Measure 9: "Jesz-cze raz"
+  { time: 24, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 25, duration: 1.8, pitch: E4, vol: 0.25 },
+  { time: 24, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 25, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 26, duration: 0.7, pitch: G3, vol: 0.08 },
+
+  // Measure 10: "jesz-cze raz"
+  { time: 27, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 28, duration: 1.8, pitch: E4, vol: 0.25 },
+  { time: 27, duration: 1.5, pitch: C3, vol: 0.14, isBass: true },
+  { time: 28, duration: 0.7, pitch: G3, vol: 0.08 },
+  { time: 29, duration: 0.7, pitch: G3, vol: 0.08 },
+
+  // Measure 11: "niech ży-je"
+  { time: 30, duration: 0.45, pitch: G4, vol: 0.2 },
+  { time: 30.5, duration: 0.45, pitch: A4, vol: 0.22 },
+  { time: 31, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 32, duration: 0.9, pitch: F4, vol: 0.2 },
+  { time: 30, duration: 1.5, pitch: F3, vol: 0.14, isBass: true },
+  { time: 31, duration: 0.7, pitch: A3, vol: 0.08 },
+  { time: 32, duration: 0.7, pitch: A3, vol: 0.08 },
+
+  // Measure 12: "ży-je nam!"
+  { time: 33, duration: 0.9, pitch: E4, vol: 0.2 },
+  { time: 34, duration: 1.8, pitch: D4, vol: 0.24 },
+  { time: 33, duration: 1.5, pitch: G3, vol: 0.14, isBass: true },
+  { time: 34, duration: 0.7, pitch: B3, vol: 0.08 },
+  { time: 35, duration: 0.7, pitch: B3, vol: 0.08 },
+
+  // Measure 13: "niech ży-je"
+  { time: 36, duration: 0.9, pitch: G4, vol: 0.22 },
+  { time: 37, duration: 0.9, pitch: A4, vol: 0.24 },
+  { time: 38, duration: 0.9, pitch: B4, vol: 0.25 },
+  { time: 36, duration: 1.5, pitch: F3, vol: 0.14, isBass: true },
+  { time: 37, duration: 0.7, pitch: G3, vol: 0.12, isBass: true },
+  { time: 38, duration: 0.7, pitch: G3, vol: 0.12, isBass: true },
+
+  // Measure 14: "NAM!"
+  { time: 39, duration: 2.8, pitch: C5, vol: 0.3 },
+  { time: 39, duration: 2.5, pitch: C3, vol: 0.18, isBass: true },
+  { time: 40, duration: 0.9, pitch: E4, vol: 0.1 },
+  { time: 40, duration: 0.9, pitch: G4, vol: 0.1 },
+  { time: 41, duration: 0.9, pitch: E4, vol: 0.1 },
+  { time: 41, duration: 0.9, pitch: G4, vol: 0.1 },
+
+  // Measure 15 & 16: Bell flourish & ring
+  { time: 42, duration: 0.6, pitch: C4, vol: 0.14 },
+  { time: 43, duration: 0.6, pitch: E4, vol: 0.16 },
+  { time: 44, duration: 0.6, pitch: G4, vol: 0.18 },
+  { time: 45, duration: 2.2, pitch: C5, vol: 0.24 },
+  { time: 46, duration: 2.5, pitch: E5, vol: 0.18 },
+];
+
 class AudioService {
   private ctx: AudioContext | null = null;
-  private ambientOscs: OscillatorNode[] = [];
-  private ambientGain: GainNode | null = null;
-  private isAmbientPlaying = false;
+  private isStoLatPlaying = false;
+  private stoLatTimer: number | null = null;
+  private activeOscs: OscillatorNode[] = [];
+  private stoLatGain: GainNode | null = null;
 
   private init() {
     if (!this.ctx) {
@@ -86,183 +221,593 @@ class AudioService {
     }
   }
 
-  // Breath whoosh when extinguishing the candle
+  // Cool, magical cinematic sound when extinguishing the candle:
+  // Natural breath whoosh + celestial descending crystal chime cascade + deep warm sub-bass resonance + sparkle flutter
   playExtinguish() {
     try {
       this.init();
       if (!this.ctx) return;
-      const bufferSize = this.ctx.sampleRate * 0.55;
+      const now = this.ctx.currentTime;
+
+      // 1. Natural breath whoosh (bandpassed filtered white noise sweeping down)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.5);
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.22;
+        data[i] = (Math.random() * 2 - 1) * 0.28;
       }
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
-
       const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(700, this.ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.5);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(520, now);
+      filter.frequency.exponentialRampToValueAtTime(70, now + 0.45);
 
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.005, this.ctx.currentTime + 0.55);
-
+      const whooshGain = this.ctx.createGain();
+      whooshGain.gain.setValueAtTime(0.42, now);
+      whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
       noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-      noise.start();
+      filter.connect(whooshGain);
+      whooshGain.connect(this.ctx.destination);
+      noise.start(now);
+
+      // 2. Sparkling celestial chime cascade (fairy dust / wishing crystal notes)
+      const shimmerNotes = [2093.0, 1760.0, 1396.91, 1046.5, 880.0, 659.25, 523.25]; // C7, A6, F6, C6, A5, E5, C5
+      shimmerNotes.forEach((freq, idx) => {
+        const noteTime = now + 0.06 + idx * 0.05;
+        const osc = this.ctx!.createOscillator();
+        const noteGain = this.ctx!.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        noteGain.gain.setValueAtTime(0.0001, noteTime);
+        noteGain.gain.linearRampToValueAtTime(0.18, noteTime + 0.005);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.5);
+
+        osc.connect(noteGain);
+        noteGain.connect(this.ctx!.destination);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.55);
+      });
+
+      // 3. Cinematic warm resonant sub-harmonic bell (wishing aura / intimate dusk transition)
+      const subOsc = this.ctx.createOscillator();
+      const subGain = this.ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(110.0, now + 0.12); // A2 deep warm chord
+      subOsc.frequency.exponentialRampToValueAtTime(55.0, now + 1.4);
+
+      subGain.gain.setValueAtTime(0.0001, now + 0.12);
+      subGain.gain.linearRampToValueAtTime(0.28, now + 0.2);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+
+      subOsc.connect(subGain);
+      subGain.connect(this.ctx.destination);
+      subOsc.start(now + 0.12);
+      subOsc.stop(now + 1.55);
     } catch {
       // Ignored
     }
   }
 
-  // Magical chime chord
+  // Gentle crystal chime for illuminated letter
+  playLetterChime(index: number) {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      const freqs = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+      const freq = freqs[index % freqs.length];
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.85);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.9);
+    } catch {
+      // Ignored
+    }
+  }
+
+  // Magical celebratory chime
   playMagicalChime() {
     try {
       this.init();
       if (!this.ctx) return;
-      const freqs = [587.33, 739.99, 880.0, 1174.66, 1479.98];
-      freqs.forEach((freq, idx) => {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        const startTime = this.ctx.currentTime + idx * 0.08;
+      const chord = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+      chord.forEach((freq, idx) => {
+        setTimeout(() => {
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
 
-        gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.12, startTime + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.6);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + 1.7);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 1.25);
+        }, idx * 110);
       });
     } catch {
       // Ignored
     }
   }
 
-  // Soft letter illumination chime
-  playLetterDing(pitchIndex: number) {
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
-      const freq = scale[pitchIndex % scale.length];
+  // Play traditional Polish accordion reed note with warm bellows tremolo
+  private playAccordionReed(freq: number, startAt: number, duration: number, volume = 0.12) {
+    if (!this.ctx) return;
+    const now = startAt;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, now);
 
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    // Warm low-pass filter to simulate acoustic accordion reed
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(950, now);
+    filter.Q.setValueAtTime(1.6, now);
 
-      gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+    // Bellows LFO vibrato
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.setValueAtTime(4.8, now);
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.setValueAtTime(2.2, now);
+    lfo.connect(osc.frequency);
 
-      osc.connect(gain);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(volume, now + 0.04);
+    gain.gain.setValueAtTime(volume * 0.9, now + Math.max(duration - 0.04, 0.08));
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    if (this.stoLatGain) {
+      gain.connect(this.stoLatGain);
+    } else {
       gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.65);
-    } catch {
-      // Ignored
     }
+
+    osc.start(now);
+    lfo.start(now);
+    const stopTime = now + duration + 0.08;
+    osc.stop(stopTime);
+    lfo.stop(stopTime);
+    this.activeOscs.push(osc);
   }
 
-  toggleAmbient(enable: boolean) {
-    try {
-      this.init();
-      if (!this.ctx) return;
+  // Play an acoustic music-box celesta bell note
+  private playBellNote(freq: number, startAt: number, duration: number, volume = 0.2, isBass = false) {
+    if (!this.ctx) return;
+    const now = startAt;
 
-      if (!enable) {
-        this.stopAmbient();
-        return;
-      }
+    // Fundamental
+    const osc1 = this.ctx.createOscillator();
+    osc1.type = isBass ? 'triangle' : 'sine';
+    osc1.frequency.setValueAtTime(freq, now);
 
-      if (this.isAmbientPlaying) return;
-      this.isAmbientPlaying = true;
+    // Shimmer overtone (2nd harmonic)
+    const osc2 = this.ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq * 2.002, now);
 
-      const chords = [220.0, 261.63, 329.63];
-      this.ambientGain = this.ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.035, this.ctx.currentTime);
-      this.ambientGain.connect(this.ctx.destination);
+    // Sparkle (3rd harmonic)
+    const osc3 = this.ctx.createOscillator();
+    osc3.type = 'sine';
+    osc3.frequency.setValueAtTime(freq * 3.004, now);
 
-      chords.forEach((freq) => {
-        if (!this.ctx || !this.ambientGain) return;
-        const osc = this.ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        osc.connect(this.ambientGain);
-        osc.start();
-        this.ambientOscs.push(osc);
-      });
-    } catch {
-      // Ignored
+    const noteGain = this.ctx.createGain();
+    noteGain.gain.setValueAtTime(0.0001, now);
+    noteGain.gain.linearRampToValueAtTime(volume, now + 0.008);
+    noteGain.gain.exponentialRampToValueAtTime(volume * 0.45, now + 0.18);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(duration, 0.65));
+
+    const overtoneGain = this.ctx.createGain();
+    overtoneGain.gain.setValueAtTime(0.0001, now);
+    overtoneGain.gain.linearRampToValueAtTime(volume * 0.25, now + 0.008);
+    overtoneGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.7);
+
+    const sparkleGain = this.ctx.createGain();
+    sparkleGain.gain.setValueAtTime(0.0001, now);
+    sparkleGain.gain.linearRampToValueAtTime(volume * 0.08, now + 0.006);
+    sparkleGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.4);
+
+    osc1.connect(noteGain);
+    osc2.connect(overtoneGain);
+    osc3.connect(sparkleGain);
+
+    if (this.stoLatGain) {
+      noteGain.connect(this.stoLatGain);
+      overtoneGain.connect(this.stoLatGain);
+      sparkleGain.connect(this.stoLatGain);
+    } else {
+      noteGain.connect(this.ctx.destination);
+      overtoneGain.connect(this.ctx.destination);
+      sparkleGain.connect(this.ctx.destination);
     }
+
+    const stopTime = now + Math.max(duration, 0.65) + 0.05;
+    osc1.start(now);
+    osc2.start(now);
+    osc3.start(now);
+
+    osc1.stop(stopTime);
+    osc2.stop(stopTime);
+    osc3.stop(stopTime);
+
+    this.activeOscs.push(osc1, osc2, osc3);
   }
 
-  stopAmbient() {
-    this.ambientOscs.forEach((o) => {
-      try {
-        o.stop();
-      } catch {
-        // Ignored
+  // Play full score of Polish "Sto lat, sto lat, niech żyje nam!"
+  // Celesta bells + accordion accompaniment in 3/4 waltz rhythm
+  private scheduleStoLatRound() {
+    if (!this.ctx || !this.isStoLatPlaying) return;
+    const beatSec = 0.52; // ~115 BPM 3/4 celebratory waltz tempo
+    const startTime = this.ctx.currentTime + 0.05;
+
+    STO_LAT_SCORE.forEach((note) => {
+      const noteStart = startTime + note.time * beatSec;
+      const noteDur = note.duration * beatSec;
+      this.playBellNote(note.pitch, noteStart, noteDur, note.vol || 0.2, !!note.isBass);
+
+      // Add warm Polish accordion reed accompaniment to melody notes
+      if (!note.isBass) {
+        this.playAccordionReed(note.pitch, noteStart, noteDur, (note.vol || 0.2) * 0.48);
       }
     });
-    this.ambientOscs = [];
-    this.isAmbientPlaying = false;
+
+    const totalRoundDurationMs = 48 * beatSec * 1000 + 400; // ~25.3 seconds
+
+    this.stoLatTimer = window.setTimeout(() => {
+      if (this.isStoLatPlaying) {
+        this.scheduleStoLatRound();
+      }
+    }, totalRoundDurationMs);
+  }
+
+  // Triumphant Finale ("Niech ży-je NAM!") played when candles & letters finish
+  playStoLatFinale() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const beatSec = 0.48;
+      const now = this.ctx.currentTime + 0.05;
+
+      // "Niech ży-je..."
+      this.playBellNote(G4, now, beatSec * 0.9, 0.24);
+      this.playBellNote(A4, now + beatSec, beatSec * 0.9, 0.26);
+      this.playBellNote(B4, now + beatSec * 2, beatSec * 0.9, 0.28);
+      // "...NAM!"
+      this.playBellNote(C5, now + beatSec * 3, beatSec * 3.2, 0.35);
+      this.playBellNote(C3, now + beatSec * 3, beatSec * 3.0, 0.2, true);
+      this.playBellNote(E4, now + beatSec * 3.5, beatSec * 1.5, 0.15);
+      this.playBellNote(G4, now + beatSec * 3.5, beatSec * 1.5, 0.15);
+      this.playBellNote(E5, now + beatSec * 4.2, beatSec * 2.0, 0.22);
+    } catch {
+      // Ignored
+    }
+  }
+
+  // Toggle Polish Traditional Birthday Music ("Sto lat")
+  toggleStoLat(enable: boolean) {
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      if (enable && !this.isStoLatPlaying) {
+        this.isStoLatPlaying = true;
+        this.stoLatGain = this.ctx.createGain();
+        this.stoLatGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+        this.stoLatGain.gain.linearRampToValueAtTime(0.85, this.ctx.currentTime + 1.2);
+        this.stoLatGain.connect(this.ctx.destination);
+
+        this.scheduleStoLatRound();
+      } else if (!enable && this.isStoLatPlaying) {
+        this.isStoLatPlaying = false;
+        if (this.stoLatTimer) {
+          clearTimeout(this.stoLatTimer);
+          this.stoLatTimer = null;
+        }
+        if (this.stoLatGain) {
+          this.stoLatGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.6);
+          setTimeout(() => {
+            this.activeOscs.forEach((o) => {
+              try {
+                o.stop();
+              } catch {}
+            });
+            this.activeOscs = [];
+            this.stoLatGain = null;
+          }, 650);
+        }
+      }
+    } catch {
+      // Ignored
+    }
   }
 }
 
 const audio = new AudioService();
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+  // Theme state: dark (black-and-pink) by default
+  const [isLightMode, setIsLightMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('kamila_theme') !== 'light';
+      return localStorage.getItem('kamila_theme') === 'light';
     }
-    return true;
+    return false;
   });
 
-  // BOOK STATE:
-  const [isBookOpen, setIsBookOpen] = useState<boolean>(false);
-  const [isAnimatingCover, setIsAnimatingCover] = useState<boolean>(false);
+  // Sound state
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
 
-  // CURRENT CHAPTER / PAGE SPREAD INSIDE THE BOOK (0: Candle & K-A-M-I-L-A, 1: Seriale & Sceny, 2: List od Amelie & Napisy)
+  // Book physical state:
+  // isBookOpen: controls whether the book spread is open
+  // isCoverSwinging: controls the 3D rotating cover animation
+  const [isBookOpen, setIsBookOpen] = useState<boolean>(false);
+  const [isCoverSwinging, setIsCoverSwinging] = useState<boolean>(false);
+
+  // Candle & Light state:
+  // isCandleLit: true while the candle burns. Touching candle sets to false (turns off the light).
+  const [isCandleLit, setIsCandleLit] = useState<boolean>(true);
+  
+  // Sequential reveal of letters K-A-M-I-L-A
+  const [revealedLettersCount, setRevealedLettersCount] = useState<number>(0);
+  const [isLetterSequenceFinished, setIsLetterSequenceFinished] = useState<boolean>(false);
+
+  // Current Chapter inside the book (0: Candle & K-A-M-I-L-A, 1: Seriale & Sceny, 2: List od Amelie & Napisy)
   const [currentChapter, setCurrentChapter] = useState<number>(0);
 
-  // CANDLE STATE:
-  const [isCandleLit, setIsCandleLit] = useState<boolean>(true);
-  const [revealedLettersCount, setRevealedLettersCount] = useState<number>(0);
+  // Share tooltip
+  const [showShareToast, setShowShareToast] = useState<boolean>(false);
 
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [ambientPlaying, setAmbientPlaying] = useState<boolean>(false);
-  const [copiedLetter, setCopiedLetter] = useState<boolean>(false);
-
+  // Canvas ref for confetti
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Theme Sync
-  useEffect(() => {
-    localStorage.setItem('kamila_theme', isDarkMode ? 'dark' : 'light');
-    if (isDarkMode) {
-      document.documentElement.classList.remove('light-theme');
-    } else {
-      document.documentElement.classList.add('light-theme');
-    }
-  }, [isDarkMode]);
+  // Canvas ref for subtle slow-rising floating pink hearts
+  const heartsCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const spawnHeartBurstRef = useRef<(() => void) | null>(null);
 
-  // Ambient sound toggle
-  const handleToggleAmbient = () => {
-    const next = !ambientPlaying;
-    setAmbientPlaying(next);
-    audio.toggleAmbient(next);
+  // Sync theme to root class
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light-theme');
+      localStorage.setItem('kamila_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      localStorage.setItem('kamila_theme', 'dark');
+    }
+  }, [isLightMode]);
+
+  // Subtle slow-rising pink hearts particle loop when book spread is open
+  useEffect(() => {
+    if (!isBookOpen) return;
+    const canvas = heartsCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let width = (canvas.width = canvas.offsetWidth);
+    let height = (canvas.height = canvas.offsetHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    const HEART_COLORS = ['#FF5C8A', '#F8C8D8', '#F28DAE', '#C2185B'];
+
+    interface FloatingHeart {
+      x: number;
+      y: number;
+      size: number;
+      color: string;
+      speedY: number;
+      speedX: number;
+      wobbleSpeed: number;
+      wobbleAmp: number;
+      wobbleOffset: number;
+      alpha: number;
+      maxAlpha: number;
+      rotation: number;
+      rotSpeed: number;
+    }
+
+    const hearts: FloatingHeart[] = [];
+
+    const createHeart = (customY?: number): FloatingHeart => ({
+      x: Math.random() * (width - 40) + 20,
+      y: customY !== undefined ? customY : height + 15,
+      size: Math.random() * 10 + 9,
+      color: HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)],
+      speedY: Math.random() * 0.45 + 0.35,
+      speedX: (Math.random() - 0.5) * 0.25,
+      wobbleSpeed: Math.random() * 0.025 + 0.015,
+      wobbleAmp: Math.random() * 1.6 + 0.6,
+      wobbleOffset: Math.random() * Math.PI * 2,
+      alpha: 0,
+      maxAlpha: Math.random() * 0.45 + 0.25,
+      rotation: (Math.random() - 0.5) * 0.35,
+      rotSpeed: (Math.random() - 0.5) * 0.008,
+    });
+
+    // Populate initial gentle floating hearts
+    for (let i = 0; i < 18; i++) {
+      hearts.push(createHeart(height - Math.random() * (height * 0.85)));
+    }
+
+    // Register burst spawner for interactive buttons
+    spawnHeartBurstRef.current = () => {
+      for (let i = 0; i < 16; i++) {
+        hearts.push({
+          x: width / 2 + (Math.random() - 0.5) * (width * 0.6),
+          y: height - Math.random() * (height * 0.4),
+          size: Math.random() * 14 + 10,
+          color: HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)],
+          speedY: Math.random() * 0.8 + 0.5,
+          speedX: (Math.random() - 0.5) * 0.6,
+          wobbleSpeed: Math.random() * 0.03 + 0.02,
+          wobbleAmp: Math.random() * 2 + 1,
+          wobbleOffset: Math.random() * Math.PI * 2,
+          alpha: 0.1,
+          maxAlpha: Math.random() * 0.55 + 0.35,
+          rotation: (Math.random() - 0.5) * 0.4,
+          rotSpeed: (Math.random() - 0.5) * 0.015,
+        });
+      }
+    };
+
+    let timer = 0;
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      timer++;
+      // Spawn new slow-rising hearts periodically from bottom of book spread
+      if (timer % 24 === 0 && hearts.length < 32) {
+        hearts.push(createHeart());
+      }
+
+      for (let i = hearts.length - 1; i >= 0; i--) {
+        const h = hearts[i];
+        h.wobbleOffset += h.wobbleSpeed;
+        h.x += Math.sin(h.wobbleOffset) * h.wobbleAmp + h.speedX;
+        h.y -= h.speedY;
+        h.rotation += h.rotSpeed;
+
+        // Smooth fade-in near bottom and fade-out near top of the spread
+        if (h.y > height * 0.75) {
+          h.alpha = Math.min(h.maxAlpha, h.alpha + 0.015);
+        } else if (h.y < height * 0.28) {
+          h.alpha = Math.max(0, h.alpha - 0.007);
+        } else {
+          h.alpha = h.maxAlpha;
+        }
+
+        // Draw classic romantic smooth heart shape
+        ctx.save();
+        ctx.translate(h.x, h.y);
+        ctx.rotate(h.rotation);
+        ctx.globalAlpha = Math.max(0, Math.min(1, h.alpha));
+        ctx.fillStyle = h.color;
+
+        const s = h.size;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.28);
+        ctx.bezierCurveTo(-s * 0.5, -s * 0.38, -s, s * 0.22, 0, s);
+        ctx.bezierCurveTo(s, s * 0.22, s * 0.5, -s * 0.38, 0, s * 0.28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Cull when ascended above book
+        if (h.y < -30 || (h.y < height * 0.28 && h.alpha <= 0)) {
+          hearts.splice(i, 1);
+        }
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isBookOpen]);
+
+  // Handle traditional Polish birthday song ("Sto lat") toggle
+  const toggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    audio.toggleStoLat(nextState);
   };
 
-  // Confetti in strict palette only
-  const firePaletteConfetti = () => {
+  // Birthday Countdown calculation for 18 October
+  const birthdayInfo = React.useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let bday = new Date(currentYear, 9, 18, 0, 0, 0); // Month 9 is October (0-indexed)
+
+    const isToday =
+      now.getMonth() === 9 && now.getDate() === 18;
+
+    if (now > bday && !isToday) {
+      bday = new Date(currentYear + 1, 9, 18, 0, 0, 0);
+    }
+
+    const diff = bday.getTime() - now.getTime();
+    const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+    const hours = Math.max(0, Math.floor((diff / (1000 * 60 * 60)) % 24));
+    const minutes = Math.max(0, Math.floor((diff / 1000 / 60) % 60));
+
+    return { isToday, days, hours, minutes };
+  }, []);
+
+  // 6 Letters of K-A-M-I-L-A with strict pink/grey tones
+  const kamilaLetters = [
+    {
+      letter: 'K',
+      toneName: 'Pudrowy Róż (#F8C8D8)',
+      hex: '#F8C8D8',
+      title: 'Kojąca obecność',
+      description: 'Ciepło, które wycisza każdy niepokój. Twój głos i uśmiech sprawiają, że cały świat staje się bezpieczny i łagodny.',
+    },
+    {
+      letter: 'A',
+      toneName: 'Aksamitny Róż (#F28DAE)',
+      hex: '#F28DAE',
+      title: 'Anielska cierpliwość',
+      description: 'Zdolność słuchania bez osądzania i niezmienna gotowość, by podać pomocną dłoń o każdej porze dnia i nocy.',
+    },
+    {
+      letter: 'M',
+      toneName: 'Sygnowany Róż (#FF5C8A)',
+      hex: '#FF5C8A',
+      title: 'Mądrość i matczyne serce',
+      description: 'Niezawodna życiowa intuicja. Zawsze wiesz, kiedy potrzeba mądrej rady, a kiedy po prostu czułego uścisku.',
+    },
+    {
+      letter: 'I',
+      toneName: 'Głęboka Fuksja (#C2185B)',
+      hex: '#C2185B',
+      title: 'Iskra domowego ciepła',
+      description: 'Magia, dzięki której stół zamienia się w serce domu, a zwykły obiad w najpiękniejsze rodzinne wspomnienie.',
+    },
+    {
+      letter: 'L',
+      toneName: 'Srebrzysty Grafit (#B5B5BC)',
+      hex: '#B5B5BC',
+      title: 'Lekarstwo na zmartwienia',
+      description: 'Twoja herbata z cytryną i proste słowa potrafią rozproszyć najczarniejsze chmury i przywrócić wiarę w jutro.',
+    },
+    {
+      letter: 'A',
+      toneName: 'Głęboka Czerń (#0B0B0D)',
+      hex: '#FF5C8A',
+      title: 'Absolutnie niezastąpiona',
+      description: 'Prawdziwy fundament naszej rodziny. Nie ma na świecie nikogo takiego jak Ty, Mamo. Dziękujemy, że jesteś.',
+    },
+  ];
+
+  // Confetti burst on canvas
+  const triggerConfetti = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -284,11 +829,11 @@ export default function App() {
       shape: 'rect' | 'circle';
     }> = [];
 
-    for (let i = 0; i < 150; i++) {
+    for (let i = 0; i < 160; i++) {
       particles.push({
-        x: canvas.width / 2 + (Math.random() - 0.5) * 180,
-        y: canvas.height * 0.45 + (Math.random() - 0.5) * 60,
-        vx: (Math.random() - 0.5) * 15,
+        x: canvas.width / 2 + (Math.random() - 0.5) * 220,
+        y: canvas.height * 0.45 + (Math.random() - 0.5) * 80,
+        vx: (Math.random() - 0.5) * 16,
         vy: -Math.random() * 16 - 6,
         color: CONFETTI_PALETTE[Math.floor(Math.random() * CONFETTI_PALETTE.length)],
         size: Math.random() * 8 + 5,
@@ -340,261 +885,229 @@ export default function App() {
     render();
   };
 
-  // 3D REAL BOOK OPENING TRIGGER
+  const [isWishMade, setIsWishMade] = useState<boolean>(false);
+  const [showWishToast, setShowWishToast] = useState<boolean>(false);
+
+  // REAL 3D BOOK OPENING ANIMATION
   const handleOpenBook = () => {
-    if (isAnimatingCover) return;
-    setIsAnimatingCover(true);
-    if (soundEnabled) {
-      audio.playPageTurn();
-      setTimeout(() => audio.playMagicalChime(), 400);
-    }
-    setIsBookOpen(true);
+    if (isCoverSwinging || isBookOpen) return;
+    setIsCoverSwinging(true);
+
+    audio.playPageTurn();
+    setTimeout(() => audio.playMagicalChime(), 450);
+
+    // After the cover has swung open in 3D, switch state smoothly
     setTimeout(() => {
-      setIsAnimatingCover(false);
-    }, 1300);
+      setIsBookOpen(true);
+      setIsCoverSwinging(false);
+    }, 1400);
   };
 
   // Close book back into closed hardcover view
   const handleCloseBook = () => {
-    if (isAnimatingCover) return;
-    setIsAnimatingCover(true);
-    if (soundEnabled) {
-      audio.playPageTurn();
-    }
-    setIsBookOpen(false);
+    if (isCoverSwinging) return;
+    setIsCoverSwinging(true);
+    audio.playPageTurn();
+    
+    // Set book state back
     setTimeout(() => {
-      setIsAnimatingCover(false);
+      setIsBookOpen(false);
+      setIsCoverSwinging(false);
       setIsCandleLit(true);
       setRevealedLettersCount(0);
+      setIsLetterSequenceFinished(false);
       setCurrentChapter(0);
-    }, 1200);
+    }, 1000);
   };
 
-  // Extinguish the realistic candle (Turn off the light)
+  // Extinguish the realistic candle in the cake (Turn off the light)
   const handleExtinguishCandle = () => {
     if (!isCandleLit) return;
     setIsCandleLit(false);
 
-    if (soundEnabled) {
-      audio.playExtinguish();
-      setTimeout(() => audio.playMagicalChime(), 350);
+    // ALWAYS play the cool sound when extinguishing the light on user interaction
+    audio.playExtinguish();
+    setSoundEnabled(true);
+
+    if (spawnHeartBurstRef.current) {
+      spawnHeartBurstRef.current();
     }
 
-    firePaletteConfetti();
-
-    // Trigger sequential illumination of the letters of K-A-M-I-L-A
+    // Sequential reveal of letters K-A-M-I-L-A with crystal chimes
     setRevealedLettersCount(0);
-    for (let i = 1; i <= 6; i++) {
-      setTimeout(() => {
-        setRevealedLettersCount(i);
-        if (soundEnabled) {
-          audio.playLetterDing(i - 1);
-        }
-      }, i * 450);
-    }
+    setIsLetterSequenceFinished(false);
+
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      setRevealedLettersCount(count);
+      audio.playLetterChime(count - 1);
+
+      if (count >= 6) {
+        clearInterval(interval);
+        setIsLetterSequenceFinished(true);
+        triggerConfetti();
+        setTimeout(() => audio.playStoLatFinale(), 350);
+      }
+    }, 650);
   };
 
+  // Relight candle on the cake
   const handleRelightCandle = () => {
     setIsCandleLit(true);
+    setRevealedLettersCount(0);
+    setIsLetterSequenceFinished(false);
+    audio.playMagicalChime();
+    if (spawnHeartBurstRef.current) {
+      spawnHeartBurstRef.current();
+    }
   };
 
-  // K-A-M-I-L-A letter data
-  const kamilaLetters = [
-    {
-      letter: 'K',
-      word: 'Kojąca',
-      toneName: 'Blush Pink',
-      toneHex: '#F8C8D8',
-      title: 'Kojąca obecność i spokój',
-      description:
-        'Gdy wokół panuje pośpiech i szum, Twój uścisk i zrównoważony ton natychmiast przywracają wewnętrzny ład. Tworzysz wokół przystań, do której zawsze chce się wracać.',
-    },
-    {
-      letter: 'A',
-      word: 'Anielska',
-      toneName: 'Soft Rose',
-      toneHex: '#F28DAE',
-      title: 'Anielska cierpliwość',
-      description:
-        'Do naszych pytań, humorów i wątpliwości. Słuchasz sercem, bez cienia oceny, zawsze z otwartymi ramionami i bezgranicznym zrozumieniem.',
-    },
-    {
-      letter: 'M',
-      word: 'Mądra',
-      toneName: 'Signature Pink',
-      toneHex: '#FF5C8A',
-      title: 'Mądrość i matczyne serce',
-      description:
-        'Wiesz bez słów, kiedy trzeba doradzić, a kiedy po prostu mocno przytulić. Twoja mądrość życiowa to nasz najpewniejszy kompas na każdą pogodę.',
-    },
-    {
-      letter: 'I',
-      word: 'Iskra',
-      toneName: 'Deep Rose',
-      toneHex: '#C2185B',
-      title: 'Iskra domowej radości',
-      description:
-        'Twój uśmiech rozprasza nawet najbardziej ponury dzień. Twoja pasja, dbałość o dom i pogoda ducha wypełniają każdy kąt prawdziwym życiem.',
-    },
-    {
-      letter: 'L',
-      word: 'Lekarstwo',
-      toneName: 'Graphite Grey',
-      toneHex: '#6B6B73',
-      title: 'Lekarstwo na zmartwienia',
-      description:
-        'Gorąca herbata z cytryną, domowy obiad i niezawodne „wszystko będzie dobrze”. Posiadasz sekretny przepis na zażegnanie każdego życiowego chłodu.',
-    },
-    {
-      letter: 'A',
-      word: 'Absolutna',
-      toneName: 'Obsidian Velvet',
-      toneHex: '#1E1E22',
-      title: 'Absolutnie niezastąpiona',
-      description:
-        'Jesteś sercem, spoiwem i najpiękniejszą częścią naszej rodziny. Dziękujemy Ci za to, kim jesteś – dziś, jutro i każdego wspólnego dnia.',
-    },
-  ];
+  // Make a heartfelt wish in silence
+  const handleMakeWish = () => {
+    setIsWishMade(true);
+    setShowWishToast(true);
+    audio.playMagicalChime();
+    triggerConfetti();
+    if (spawnHeartBurstRef.current) {
+      spawnHeartBurstRef.current();
+    }
+    setTimeout(() => setShowWishToast(false), 3500);
+  };
 
-  // 4 Scenes from her home
-  const scenes = [
-    {
-      id: '01',
-      title: 'Rytuał herbaty z cytryną',
-      quote: '„Herbata stygnie, siadajcie!”',
-      description:
-        'Zawsze parzona w ulubionej porcelanie, idealnie ciepła i stawiana na stole bez pytania, dokładnie w tej chwili, gdy ktoś najbardziej potrzebuje chwili wyciszenia.',
-      tag: 'Scena 1 · Kuchnia o poranku',
-    },
-    {
-      id: '02',
-      title: 'Magia niedzielnego stołu',
-      quote: '„Dla każdego znajdzie się miejsce”',
-      description:
-        'Zapach ciasta drożdżowego z kruszonką unoszący się na klatce schodowej już od progu. I ten stół, przy którym w tajemniczy sposób zawsze mieści się jeszcze jedno krzesło dla gościa.',
-      tag: 'Scena 2 · Niedzielne popołudnie',
-    },
-    {
-      id: '03',
-      title: 'Telefon w trudnej chwili',
-      quote: '„Zawsze wiesz, zanim powiem”',
-      description:
-        'Dwie minuty rozmowy z Tobą i każdy problem natychmiast traci na sile. Masz dar wyczuwania nastrojów na odległość i zawsze wiesz, które słowa przyniosą ulgę.',
-      tag: 'Scena 3 · Niezawodny kontakt',
-    },
-    {
-      id: '04',
-      title: 'Odnajdywanie zaginionych rzeczy',
-      quote: '„Leżało przecież na widoku!”',
-      description:
-        'Przedmioty, które rozpłynęły się w powietrzu, pod Twoim spojrzeniem materializują się w trzy sekundy. Rodzinna supermoc, której nikt inny nie potrafi racjonalnie wytłumaczyć.',
-      tag: 'Scena 4 · Domowa magia',
-    },
-  ];
+  // Share action
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'M jak Mama – Księga Życzeń dla Kamili',
+        text: 'Wyjątkowy podarunek urodzinowy dla Mamy Kamili przygotowany z miłością przez Amelie.',
+        url: window.location.href,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 3000);
+    }
+  };
 
-  // Birthday letter (138 words, strictly within 120-180 words)
+  // Letter copy in Polish (140 words)
   const letterParagraphs = [
-    'Droga Kamilo,',
-    'Gdyby ktoś spróbował napisać scenariusz do najpiękniejszej opowieści o naszym domu, Ty byłabyś jego najjaśniejszą postacią. To Ty każdego dnia przypominasz nam, że prawdziwe szczęście nie potrzebuje głośnych dekoracji – rodzi się przy wspólnym stole, w cieple podanego kubka herbaty i w Twoim serdecznym uśmiechu, który potrafi rozproszyć nawet największe troski.',
-    'Dziękujemy Ci za Twoją anielską cierpliwość, za mądrość, która zawsze wskazuje właściwą drogę, i za to niezwykłe poczucie bezpieczeństwa, jakim nas otaczasz. Dziękujemy za każdy obiad przygotowany z miłością, za wszystkie wysłuchane historie i za to, że w Twoim sercu zawsze jest miejsce na wyrozumiałość i czułość.',
-    'W dniu Twoich urodzin życzymy Ci niegasnącego zdrowia, głębokiego spokoju ducha, czasu na Twoje małe pasje i ludzi wokół, którzy będą dbać o Ciebie tak pięknie, jak Ty dbasz o nas. Niech każdy kolejny dzień mieni się dla Ciebie najjaśniejszymi odcieniami szczęścia.',
-    'Sto lat, Kamilo!',
+    "Droga Kamilo,",
+    "Gdyby nasze życie było serialem, każdy kolejny odcinek zaczynałby się przy Twoim stole. Bo dom to nie cztery ściany z cegieł – dom to Ty, Twój łagodny uśmiech i bezgraniczne ciepło, którym otulasz nas każdego dnia.",
+    "Dziękujemy Ci za anielską cierpliwość, za mądrość, która rozprasza każdą wątpliwość, i za herbatę z cytryną, która leczy największe zmartwienia. To Ty pokazujesz nam, że szczęście nie kryje się w wielkich gestach, lecz w zwykłych, codziennych chwilach spędzonych razem.",
+    "Życzymy Ci niegasnącego zdrowia, spokoju w sercu i czasu tylko dla siebie. Niech każda chwila przynosi Ci powody do szczerego śmiechu, a każdy kolejny rozdział Twojego życia pisze same pogodne scenariusze.",
+    "Sto lat, Droga Kamilo!",
   ];
-
-  const fullLetter = letterParagraphs.join('\n\n') + '\n\nZ bezgraniczną miłością,\nAmelie & Twoja Rodzina';
-
-  const handleCopyLetter = () => {
-    navigator.clipboard.writeText(fullLetter);
-    setCopiedLetter(true);
-    setTimeout(() => setCopiedLetter(false), 2400);
-  };
-
-  const handleNextChapter = () => {
-    if (soundEnabled) audio.playPageTurn();
-    setCurrentChapter((prev) => Math.min(prev + 1, 2));
-  };
-
-  const handlePrevChapter = () => {
-    if (soundEnabled) audio.playPageTurn();
-    setCurrentChapter((prev) => Math.max(prev - 1, 0));
-  };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-500 relative selection:bg-[#FF5C8A] selection:text-black flex flex-col justify-between">
-      {/* Canvas for confetti */}
+    <div className="min-h-screen flex flex-col justify-between selection:bg-[#FF5C8A] selection:text-black transition-colors duration-500 overflow-x-hidden relative">
+      {/* Background canvas for confetti */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 pointer-events-none z-50 w-full h-full"
       />
 
-      {/* FLOATING TOP BAR FOR QUIET CONTROLS */}
-      <header className="fixed top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none no-print">
-        <div className="pointer-events-auto">
+      {/* TOP COMPACT GIFT TOOLBAR */}
+      <header className="w-full max-w-5xl mx-auto px-4 py-3 flex items-center justify-between z-30 border-b border-[var(--border-line)]/50 no-print">
+        <div className="flex items-center gap-2">
+          <span className="font-serif-display font-bold text-xl text-[#FF5C8A]">M</span>
+          <span className="text-xs uppercase tracking-widest font-semibold text-[var(--text-muted)]">
+            Podarunek dla Kamili · od Amelie
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
           {isBookOpen && (
             <button
               onClick={handleCloseBook}
-              className="px-3.5 py-1.5 rounded-full border border-[var(--border-line)] bg-[var(--surface-raised)]/90 backdrop-blur-md text-xs font-semibold text-[var(--text-secondary)] hover:text-[#FF5C8A] hover:border-[#FF5C8A] transition-all flex items-center gap-1.5 shadow-sm"
-              title="Zamknij księgę wspomnień"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--surface-elevated)] text-[var(--text-secondary)] hover:text-[#FF5C8A] border border-[var(--border-line)] transition-all"
+              title="Zamknij księgę"
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Zamknij księgę</span>
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Zamknij księgę</span>
             </button>
           )}
-        </div>
 
-        <div className="flex items-center gap-2 pointer-events-auto">
           <button
-            onClick={handleToggleAmbient}
-            title={ambientPlaying ? 'Wycisz melodię' : 'Włącz łagodną melodię'}
-            aria-label={ambientPlaying ? 'Wycisz melodię' : 'Włącz łagodną melodię'}
-            className={`px-3 py-1.5 rounded-full border text-xs font-semibold backdrop-blur-md transition-all flex items-center gap-1.5 ${
-              ambientPlaying
-                ? 'border-[#FF5C8A] text-[#FF5C8A] bg-[#FF5C8A]/15'
-                : 'border-[var(--border-line)] text-[var(--text-muted)] bg-[var(--surface-raised)]/80 hover:text-[var(--text-primary)]'
+            onClick={toggleSound}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+              soundEnabled
+                ? 'bg-[#FF5C8A] text-black border-[#FF5C8A] shadow-[0_0_15px_rgba(255,92,138,0.5)]'
+                : 'border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-primary)] bg-[var(--surface-elevated)]'
             }`}
+            title={soundEnabled ? 'Zatrzymaj tradycyjne „Sto lat”' : 'Włącz tradycyjną polską melodię urodzinową („Sto lat”)'}
+            aria-label="Tradycyjna polska muzyka urodzinowa"
           >
-            {ambientPlaying ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{ambientPlaying ? 'Melodia gra' : 'Muzyka'}</span>
+            {soundEnabled ? (
+              <>
+                <Volume2 className="w-3.5 h-3.5 animate-bounce" />
+                <span>Sto lat: Gra melodia 🎵</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-3.5 h-3.5" />
+                <span>Muzyka: „Sto lat”</span>
+              </>
+            )}
           </button>
 
           <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}
-            aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}
-            className="p-2 rounded-full border border-[var(--border-line)] bg-[var(--surface-raised)]/80 backdrop-blur-md text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            onClick={() => setIsLightMode(!isLightMode)}
+            className="p-2 rounded-full border border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+            title={isLightMode ? 'Włącz tryb aksamitny (nocny)' : 'Włącz tryb jasny'}
+            aria-label="Przełącz motyw"
           >
-            {isDarkMode ? <Sun className="w-3.5 h-3.5 text-[#F8C8D8]" /> : <Moon className="w-3.5 h-3.5 text-[#FF5C8A]" />}
+            {isLightMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={handleShare}
+            className="p-2 rounded-full border border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all relative"
+            title="Podziel się podarunkiem"
+            aria-label="Udostępnij"
+          >
+            <Share2 className="w-4 h-4" />
           </button>
         </div>
       </header>
 
+      {/* Share toast feedback */}
+      {showShareToast && (
+        <div className="fixed top-16 right-6 z-50 bg-[#1E1E22] border border-[#FF5C8A] text-[#F2F2F4] px-4 py-2 rounded-lg text-xs font-medium shadow-2xl flex items-center gap-2 animate-bounce">
+          <Check className="w-4 h-4 text-[#FF5C8A]" />
+          <span>Skopiowano link do podarunku!</span>
+        </div>
+      )}
+
       {/* =========================================================================
           THE 3D BOOK EXPERIENCE
          ========================================================================= */}
-      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 md:p-10 book-scene">
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 md:p-8 book-scene">
         
         {/* BOOK CONTAINER */}
         <div
-          className={`w-full max-w-5xl transition-all duration-1000 ${
-            isBookOpen ? 'max-w-5xl' : 'max-w-lg'
+          className={`w-full transition-all duration-1000 ${
+            isBookOpen || isCoverSwinging ? 'max-w-5xl' : 'max-w-md sm:max-w-lg'
           }`}
         >
           {/* THE BOOK SHELL */}
-          <div className="relative rounded-2xl bg-[#151518] border-2 border-[#2A2A2E] shadow-[0_30px_70px_rgba(0,0,0,0.9)] overflow-hidden">
+          <div className="relative rounded-2xl leather-outer-shell overflow-hidden">
             
             {/* BOOK SPINE ON THE FAR LEFT (Visible in 3D) */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/80 via-[#2A2A2E]/60 to-transparent z-30 pointer-events-none border-r border-[#2A2A2E]/50" />
+            <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-9 leather-spine z-30 pointer-events-none" />
 
             {/* PINK BOOKMARK RIBBON (HANGING FROM THE BOTTOM) */}
-            <div className="absolute left-14 -bottom-6 w-5 h-16 bg-[#FF5C8A] shadow-[0_4px_12px_rgba(255,92,138,0.5)] z-40 rounded-b-sm transform skew-x-3 pointer-events-none" />
+            <div className="absolute left-14 -bottom-6 w-5 h-16 bg-[#FF5C8A] shadow-[0_4px_14px_rgba(255,92,138,0.6)] z-40 rounded-b-sm transform skew-x-3 pointer-events-none" />
 
             {/* ===================================================================
-                THE 3D FRONT COVER (TURNS OPEN WITH REAL 3D HINGE)
+                THE 3D FRONT COVER (PHYSICALLY HINGED ON LEFT SPINE)
                =================================================================== */}
-            {!isBookOpen && (
+            {(!isBookOpen || isCoverSwinging) && (
               <div
                 onClick={handleOpenBook}
-                className="cursor-pointer group select-none min-h-[540px] sm:min-h-[600px] p-8 sm:p-12 flex flex-col justify-between relative z-20 book-cover-hinge"
+                className={`cursor-pointer group select-none min-h-[560px] sm:min-h-[620px] p-8 sm:p-12 flex flex-col justify-between relative z-20 book-cover-hinge leather-cover ${
+                  isCoverSwinging ? 'is-open' : ''
+                }`}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -602,50 +1115,83 @@ export default function App() {
                 }}
                 aria-label="Dotknij, aby otworzyć księgę dla Mamy Kamili przygotowaną przez Amelie"
               >
-                {/* Decorative Filigree Borders in Pink & Silver */}
-                <div className="absolute inset-4 border border-[#FF5C8A]/30 rounded-xl pointer-events-none" />
-                <div className="absolute inset-6 border border-[#2A2A2E] rounded-lg pointer-events-none" />
+                {/* FRONT SIDE OF THE HARDCOVER */}
+                <div className="book-cover-frontside flex flex-col justify-between h-full relative z-10">
+                  {/* Authentic Leather Stitched Edge Seam & Filigree Borders */}
+                  <div className="absolute inset-2 sm:inset-3 leather-stitched-border rounded-xl pointer-events-none" />
+                  <div className="absolute inset-4 sm:inset-6 border border-[#FF5C8A]/35 rounded-lg pointer-events-none" />
 
-                {/* Cover Header */}
-                <div className="text-center space-y-3 pt-4 z-10">
-                  <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Księga Życzeń · 18 Października</span>
+                  {/* Antique Brass Corner Plates with Filigree */}
+                  <div className="absolute top-2.5 left-2.5 w-9 h-9 border-t-2 border-l-2 border-[#D9D9DE]/70 rounded-tl-sm pointer-events-none flex items-start justify-start p-1 select-none">
+                    <span className="text-[#FF5C8A] text-xs">❖</span>
+                  </div>
+                  <div className="absolute top-2.5 right-2.5 w-9 h-9 border-t-2 border-r-2 border-[#D9D9DE]/70 rounded-tr-sm pointer-events-none flex items-start justify-end p-1 select-none">
+                    <span className="text-[#FF5C8A] text-xs">❖</span>
+                  </div>
+                  <div className="absolute bottom-2.5 left-2.5 w-9 h-9 border-b-2 border-l-2 border-[#D9D9DE]/70 rounded-bl-sm pointer-events-none flex items-end justify-start p-1 select-none">
+                    <span className="text-[#FF5C8A] text-xs">❖</span>
+                  </div>
+                  <div className="absolute bottom-2.5 right-2.5 w-9 h-9 border-b-2 border-r-2 border-[#D9D9DE]/70 rounded-br-sm pointer-events-none flex items-end justify-end p-1 select-none">
+                    <span className="text-[#FF5C8A] text-xs">❖</span>
                   </div>
 
-                  <h1 className="font-serif-display text-4xl sm:text-6xl font-bold tracking-tight text-[#F2F2F4] leading-tight">
-                    Dla Mamy <span className="text-[#FF5C8A]">Kamili</span>
-                  </h1>
+                  {/* Cover Header */}
+                  <div className="text-center space-y-3 pt-6 z-10">
+                    <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Księga Życzeń · 18 Października</span>
+                    </div>
 
-                  <p className="font-serif-display italic text-lg sm:text-2xl text-[#B5B5BC]">
-                    Odcinek Specjalny: „M jak Mama”
-                  </p>
+                    <h1 className="font-serif-display text-4xl sm:text-6xl font-bold tracking-tight text-[#F2F2F4] leading-tight">
+                      Dla Mamy <span className="text-[#FF5C8A]">Kamili</span>
+                    </h1>
+
+                    <p className="font-serif-display italic text-lg sm:text-2xl text-[#B5B5BC]">
+                      Odcinek Specjalny: „M jak Mama”
+                    </p>
+                  </div>
+
+                  {/* Center Embossed Wax Seal */}
+                  <div className="my-6 flex flex-col items-center justify-center z-10">
+                    <div className="w-24 h-24 rounded-full bg-[#1E1E22] border-2 border-[#FF5C8A] shadow-[0_0_35px_rgba(255,92,138,0.4)] flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                      <Heart className="w-10 h-10 text-[#FF5C8A] fill-[#FF5C8A]" />
+                    </div>
+                    <div className="font-cursive text-2xl text-[#F8C8D8] mt-3">
+                      Wszystkiego Najlepszego
+                    </div>
+                  </div>
+
+                  {/* Attribution & Invitation */}
+                  <div className="text-center space-y-3 z-10 border-t border-[#2A2A2E] pt-5">
+                    <div className="text-xs uppercase tracking-wider font-semibold text-[#6B6B73]">
+                      Podarunek stworzony z miłością przez
+                    </div>
+                    <div className="font-serif-display text-2xl font-bold text-[#FF5C8A]">
+                      Amelie
+                    </div>
+
+                    <div className="pt-2">
+                      <span className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF5C8A] text-black font-bold text-xs uppercase tracking-wider shadow-[0_0_24px_rgba(255,92,138,0.6)] group-hover:bg-[#F28DAE] transition-all transform group-hover:scale-105">
+                        <BookOpen className="w-4 h-4" />
+                        <span>Dotknij, aby otworzyć księgę</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Center Embossed Wax Seal */}
-                <div className="my-8 flex flex-col items-center justify-center z-10">
-                  <div className="w-24 h-24 rounded-full bg-[#1E1E22] border-2 border-[#FF5C8A] shadow-[0_0_35px_rgba(255,92,138,0.35)] flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                    <Heart className="w-10 h-10 text-[#FF5C8A] fill-[#FF5C8A]" />
-                  </div>
-                  <div className="font-cursive text-2xl text-[#F8C8D8] mt-3">
-                    Wszystkiego Najlepszego
-                  </div>
-                </div>
-
-                {/* Attribution & Invitation */}
-                <div className="text-center space-y-3 z-10 border-t border-[#2A2A2E] pt-5">
-                  <div className="text-xs uppercase tracking-wider font-semibold text-[#6B6B73]">
-                    Podarunek stworzony z miłością przez
-                  </div>
-                  <div className="font-serif-display text-2xl font-bold text-[#FF5C8A]">
-                    Amelie
-                  </div>
-
-                  <div className="pt-2">
-                    <span className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF5C8A] text-black font-bold text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,92,138,0.5)] group-hover:bg-[#F28DAE] transition-colors">
-                      <BookOpen className="w-4 h-4" />
-                      <span>Dotknij, aby otworzyć księgę</span>
-                    </span>
+                {/* INSIDE OF THE FRONT COVER (Visible as it swings open 180deg) */}
+                <div className="book-cover-backside absolute inset-0 bg-[#121215] border-r-2 border-[#2A2A2E] p-8 sm:p-12 flex flex-col justify-center items-center text-center">
+                  <div className="max-w-xs space-y-4">
+                    <div className="w-12 h-12 rounded-full border border-[#FF5C8A]/40 flex items-center justify-center mx-auto text-[#FF5C8A]">
+                      <Heart className="w-6 h-6 fill-current" />
+                    </div>
+                    <div className="font-serif-display italic text-2xl text-[#F28DAE]">
+                      „Dla najwspanialszej Mamy na świecie”
+                    </div>
+                    <p className="font-cursive text-xl text-[#B5B5BC]">
+                      Z miłością i wdzięcznością,<br />
+                      Twoja Amelie
+                    </p>
                   </div>
                 </div>
               </div>
@@ -655,8 +1201,15 @@ export default function App() {
                 THE OPENED BOOK SPREAD (INSIDE THE BOOK)
                =================================================================== */}
             {isBookOpen && (
-              <div className="min-h-[580px] sm:min-h-[640px] flex flex-col justify-between p-6 sm:p-10 z-10 animate-fade-in">
-                
+              <div
+                className={`min-h-[580px] sm:min-h-[640px] flex flex-col justify-between p-6 sm:p-10 z-10 transition-colors duration-700 paper-grain-texture relative ${
+                  !isCandleLit && currentChapter === 0
+                    ? 'bg-[#0E0E11]' // Intimate dusk atmosphere when light is extinguished
+                    : 'bg-[#151518]'
+                }`}
+              >
+                {/* Central Gutter Crease Shadow (Authentic Book Spine Fold) */}
+                <div className="book-gutter-crease hidden md:block" />
                 {/* Book Header / Breadcrumb */}
                 <div className="flex items-center justify-between border-b border-[var(--border-line)] pb-4 text-xs font-semibold text-[var(--text-muted)]">
                   <div className="flex items-center gap-2">
@@ -665,38 +1218,71 @@ export default function App() {
                     <span>Dla Mamy Kamili od <strong className="text-[var(--text-primary)]">Amelie</strong></span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs">
-                    <span>Rozdział {currentChapter + 1} z 3</span>
+                  <div className="flex items-center gap-2">
+                    {/* Chapter selector tabs */}
+                    <div className="inline-flex rounded-lg bg-[var(--surface-elevated)] p-1 border border-[var(--border-line)]">
+                      <button
+                        onClick={() => setCurrentChapter(0)}
+                        className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                          currentChapter === 0
+                            ? 'bg-[#FF5C8A] text-black font-bold'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        Świeca & Imię
+                      </button>
+                      <button
+                        onClick={() => setCurrentChapter(1)}
+                        className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                          currentChapter === 1
+                            ? 'bg-[#FF5C8A] text-black font-bold'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        Sceny z Domu
+                      </button>
+                      <button
+                        onClick={() => setCurrentChapter(2)}
+                        className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                          currentChapter === 2
+                            ? 'bg-[#FF5C8A] text-black font-bold'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        List od Amelie
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* SPREAD CONTENT BY CHAPTER */}
                 <div className="my-6">
                   {/* ===============================================================
-                      CHAPTER 0: CANDLE RITUAL & SEQUENTIAL LETTERS (K-A-M-I-L-A)
+                      CHAPTER 0: REALISTIC CANDLE RITUAL & K-A-M-I-L-A ILLUMINATION
                      =============================================================== */}
                   {currentChapter === 0 && (
                     <div className="space-y-8 animate-fade-in">
                       {/* Step Header */}
                       <div className="text-center space-y-2">
-                        <div className="text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
-                          Rytuał Urodzinowy
+                        <div className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
+                          <Flame className="w-3.5 h-3.5 fill-current" />
+                          <span>Rytuał Urodzinowy Kamili</span>
                         </div>
                         <h2 className="font-serif-display text-3xl sm:text-5xl font-bold text-[var(--text-primary)]">
                           {isCandleLit ? 'Święty Płomień Życzenia' : 'Światło Zostało Zgaszone'}
                         </h2>
                         <p className="text-sm text-[var(--text-secondary)] max-w-lg mx-auto">
                           {isCandleLit
-                            ? 'Pomyśl w sercu najpiękniejsze życzenie. Następnie dotknij płomienia świecy na ekranie, aby go zgasić i odkryć tajemnicę imienia.'
-                            : 'Płomień zgasł, a Twoje życzenie poleciało do gwiazd. Spójrz, jak rozbłyskują litery Twojego imienia:'}
+                            ? 'Pomyśl w sercu najcichsze marzenie. Następnie dotknij płomienia świecy na ekranie, aby zgasić światło i obudzić barwy Twojego imienia.'
+                            : 'Płomień zgasł, a Twoje życzenie popłynęło prosto do nieba. Zobacz, jak rozbłyskują litery Twojego imienia:'}
                         </p>
                       </div>
 
-                      {/* THE REALISTIC CANDLE */}
+                      {/* THE ULTRA-REALISTIC CANDLE (TOUCH TO TURN OFF LIGHT) */}
                       <div className="py-4 flex flex-col items-center justify-center select-none relative">
-                        {/* Ambient table glow */}
+                        {/* Ambient warm table aura when burning */}
                         {isCandleLit && (
-                          <div className="absolute w-64 h-64 rounded-full bg-[#FF5C8A]/15 blur-3xl pointer-events-none animate-aura-pulse" />
+                          <div className="absolute w-80 h-80 rounded-full bg-[#FF5C8A]/18 blur-3xl pointer-events-none animate-aura-pulse" />
                         )}
 
                         <div
@@ -707,119 +1293,219 @@ export default function App() {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') handleExtinguishCandle();
                           }}
-                          aria-label={isCandleLit ? 'Dotknij świecy, aby zgasić płomień' : 'Świeca jest zgaszona'}
+                          aria-label={isCandleLit ? 'Dotknij świecy, aby zgasić płomień i światło' : 'Świeca jest zgaszona'}
                         >
                           <svg
-                            className="w-48 h-64 overflow-visible"
-                            viewBox="0 0 200 250"
+                            className="w-52 h-72 sm:w-60 sm:h-80 overflow-visible"
+                            viewBox="0 0 220 280"
                             aria-hidden="true"
                           >
                             <defs>
-                              <linearGradient id="waxGradReal" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#1E1E22" />
-                                <stop offset="35%" stopColor="#35353C" />
-                                <stop offset="70%" stopColor="#25252A" />
-                                <stop offset="100%" stopColor="#121215" />
+                              {/* Wax body realistic shading gradient */}
+                              <linearGradient id="waxPillarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#18181B" />
+                                <stop offset="25%" stopColor="#2E2E36" />
+                                <stop offset="60%" stopColor="#222228" />
+                                <stop offset="90%" stopColor="#352830" />
+                                <stop offset="100%" stopColor="#141416" />
                               </linearGradient>
-                              <radialGradient id="flameGradReal" cx="50%" cy="70%" r="50%">
-                                <stop offset="0%" stopColor="#FFF" />
-                                <stop offset="35%" stopColor="#F8C8D8" />
-                                <stop offset="70%" stopColor="#FF5C8A" />
-                                <stop offset="95%" stopColor="#C2185B" />
+
+                              {/* Top molten wax pool radial gradient */}
+                              <radialGradient id="moltenPoolGrad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#4A343D" />
+                                <stop offset="60%" stopColor="#282830" />
+                                <stop offset="100%" stopColor="#1A1A1E" />
+                              </radialGradient>
+
+                              {/* Outer luminous flame gradient (Pink to deep rose) */}
+                              <radialGradient id="outerFlameGrad" cx="50%" cy="80%" r="60%">
+                                <stop offset="0%" stopColor="#FFFFFF" />
+                                <stop offset="25%" stopColor="#FFF0F5" />
+                                <stop offset="55%" stopColor="#FF5C8A" />
+                                <stop offset="85%" stopColor="#C2185B" />
                                 <stop offset="100%" stopColor="transparent" />
+                              </radialGradient>
+
+                              {/* Inner hot white core */}
+                              <linearGradient id="innerHotCore" x1="0%" y1="100%" x2="0%" y2="0%">
+                                <stop offset="0%" stopColor="#FFFFFF" />
+                                <stop offset="100%" stopColor="#FFF8FA" />
+                              </linearGradient>
+
+                              {/* Blue combustion root base */}
+                              <radialGradient id="blueBaseGrad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#6C8CFF" stopOpacity="0.85" />
+                                <stop offset="65%" stopColor="#8A4FFF" stopOpacity="0.4" />
+                                <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                               </radialGradient>
                             </defs>
 
-                            {/* Pedestal */}
-                            <ellipse cx="100" cy="235" rx="72" ry="11" fill="#151518" stroke="#2A2A2E" strokeWidth="1.5" />
-                            <ellipse cx="100" cy="232" rx="62" ry="8" fill="#1E1E22" stroke="#6B6B73" strokeWidth="0.75" />
+                            {/* Ceramic / Metallic Saucer Stand */}
+                            <ellipse cx="110" cy="262" rx="85" ry="14" fill="#0E0E10" stroke="#2A2A2E" strokeWidth="2" />
+                            <ellipse cx="110" cy="258" rx="74" ry="10" fill="#1C1C20" stroke="#4A4A52" strokeWidth="1" />
+                            <ellipse cx="110" cy="255" rx="60" ry="7" fill="#141416" />
 
-                            {/* Candle Wax Body with Drippings */}
+                            {/* Realistic Wax Pillar Body */}
                             <path
-                              d="M 64 125 C 64 120, 136 120, 136 125 L 136 228 C 136 232, 64 232, 64 228 Z"
-                              fill="url(#waxGradReal)"
+                              d="M 70 140 C 70 134, 150 134, 150 140 L 150 252 C 150 258, 70 258, 70 252 Z"
+                              fill="url(#waxPillarGrad)"
                               stroke="#2A2A2E"
-                              strokeWidth="1"
+                              strokeWidth="1.2"
                             />
-                            {/* Wax drip trails */}
-                            <path d="M 68 125 Q 71 145 71 160 Q 69 168 66 165 Z" fill="#2A2A2E" opacity="0.8" />
-                            <path d="M 130 125 Q 128 140 131 155 Q 134 162 135 158 Z" fill="#35353C" opacity="0.8" />
 
-                            {/* Molten pool at top */}
-                            <ellipse cx="100" cy="125" rx="36" ry="8" fill="#25252A" stroke="#3A3A42" strokeWidth="0.75" />
+                            {/* Realistic Wax Drips down the sides */}
+                            {/* Drip 1 (left) */}
+                            <path
+                              d="M 74 140 Q 77 165 78 185 Q 76 195 72 192 Q 70 170 71 140 Z"
+                              fill="#2E2E36"
+                              opacity="0.9"
+                            />
+                            {/* Drip 2 (center-left highlight) */}
+                            <path
+                              d="M 95 140 Q 97 158 97 172 Q 95 180 93 176 Q 92 155 93 140 Z"
+                              fill="#3E3E48"
+                              opacity="0.75"
+                            />
+                            {/* Drip 3 (right long drip) */}
+                            <path
+                              d="M 144 140 Q 142 165 144 195 Q 148 206 149 198 Q 148 160 146 140 Z"
+                              fill="#382E34"
+                              opacity="0.85"
+                            />
 
-                            {/* Cotton Wick */}
-                            <path d="M 100 125 Q 99 114 102 108" fill="none" stroke="#121215" strokeWidth="2.5" strokeLinecap="round" />
-                            <circle cx="102" cy="108" r="1.5" fill={isCandleLit ? "#FF5C8A" : "#6B6B73"} />
+                            {/* Top Molten Pool of Liquid Wax */}
+                            <ellipse cx="110" cy="140" rx="40" ry="9" fill="url(#moltenPoolGrad)" stroke="#3A3A42" strokeWidth="1" />
+                            
+                            {/* Molten wax reflection highlights */}
+                            {isCandleLit && (
+                              <ellipse cx="110" cy="141" rx="18" ry="4" fill="#FF5C8A" opacity="0.3" filter="blur(1px)" />
+                            )}
 
-                            {/* FLAME OR SMOKE */}
+                            {/* Braided Dark Cotton Wick with Curve */}
+                            <path
+                              d="M 110 140 Q 108 126 112 118"
+                              fill="none"
+                              stroke="#111113"
+                              strokeWidth="2.8"
+                              strokeLinecap="round"
+                            />
+
+                            {/* Glowing Ember Tip */}
+                            <circle
+                              cx="112"
+                              cy="118"
+                              r="2"
+                              fill={isCandleLit ? "#FF3366" : "#4A4A52"}
+                              filter={isCandleLit ? "drop-shadow(0 0 4px #FF5C8A)" : "none"}
+                            />
+
+                            {/* ========================================================
+                                FLAME (OR RISING SMOKE WHEN EXTINGUISHED)
+                               ======================================================== */}
                             {isCandleLit ? (
-                              <g className="animate-realistic-flame" style={{ transformOrigin: "100px 108px" }}>
-                                <path d="M 102 108 C 84 100, 78 70, 101 42 C 124 70, 118 100, 102 108 Z" fill="url(#flameGradReal)" />
-                                <path d="M 102 108 C 94 104, 92 84, 101 64 C 110 84, 108 104, 102 108 Z" fill="#FFF" />
+                              <g
+                                className="animate-realistic-flame"
+                                style={{ transformOrigin: "110px 118px" }}
+                              >
+                                {/* Blue base of flame (clean combustion) */}
+                                <ellipse cx="111" cy="117" rx="10" ry="6" fill="url(#blueBaseGrad)" />
+
+                                {/* Outer teardrop flame (incandescent rose/pink body) */}
+                                <path
+                                  d="M 112 118 C 90 108, 84 72, 110 40 C 136 72, 130 108, 112 118 Z"
+                                  fill="url(#outerFlameGrad)"
+                                />
+
+                                {/* Inner brilliant white-hot core */}
+                                <path
+                                  className="animate-inner-core"
+                                  d="M 112 118 C 102 112, 100 88, 111 65 C 122 88, 120 112, 112 118 Z"
+                                  fill="url(#innerHotCore)"
+                                  style={{ transformOrigin: "111px 118px" }}
+                                />
                               </g>
                             ) : (
-                              <g className="animate-smoke-wisp" style={{ transformOrigin: "102px 108px" }}>
-                                <path d="M 102 108 Q 98 90 104 75 T 98 45" fill="none" stroke="#B5B5BC" strokeWidth="2" opacity="0.6" />
-                                <circle cx="102" cy="98" r="3" fill="#6B6B73" opacity="0.4" />
-                                <circle cx="105" cy="80" r="4.5" fill="#D9D9DE" opacity="0.3" />
+                              /* Delicate rising smoke curls */
+                              <g
+                                className="animate-smoke-wisp"
+                                style={{ transformOrigin: "112px 118px" }}
+                              >
+                                <path
+                                  d="M 112 118 Q 106 95 115 78 T 107 45 T 116 20"
+                                  fill="none"
+                                  stroke="#B5B5BC"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  opacity="0.7"
+                                />
+                                <circle cx="112" cy="104" r="3" fill="#6B6B73" opacity="0.4" />
+                                <circle cx="116" cy="85" r="4.5" fill="#D9D9DE" opacity="0.3" />
+                                <circle cx="108" cy="60" r="6" fill="#F2F2F4" opacity="0.2" />
                               </g>
                             )}
                           </svg>
 
-                          <div className="mt-2">
+                          {/* Action badge under candle */}
+                          <div className="mt-3">
                             {isCandleLit ? (
-                              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF5C8A]/15 border border-[#FF5C8A]/50 text-[#FF5C8A] text-xs font-semibold group-hover:bg-[#FF5C8A] group-hover:text-black transition-colors">
-                                <Flame className="w-3.5 h-3.5 fill-current" />
-                                <span>Dotknij świecy, aby zgasić płomień</span>
+                              <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FF5C8A]/20 border border-[#FF5C8A] text-[#FF5C8A] text-xs font-bold uppercase tracking-wider group-hover:bg-[#FF5C8A] group-hover:text-black transition-all shadow-[0_0_20px_rgba(255,92,138,0.35)]">
+                                <Flame className="w-4 h-4 fill-current animate-bounce" />
+                                <span>Dotknij świecy, aby zgasić światło</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border-line)] text-xs text-[var(--text-muted)]">
-                                <Check className="w-3.5 h-3.5 text-[#FF5C8A]" />
-                                <span>Świeca zgaszona · Marzenie wysłane</span>
+                              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border-line)] text-xs text-[var(--text-secondary)] font-medium">
+                                <Check className="w-4 h-4 text-[#FF5C8A]" />
+                                <span>Światło zgaszone · Marzenie płynie do gwiazd</span>
                               </span>
                             )}
                           </div>
                         </div>
 
+                        {/* Re-light button if candle extinguished */}
                         {!isCandleLit && (
                           <button
                             onClick={handleRelightCandle}
-                            className="mt-3 text-xs text-[var(--text-muted)] hover:text-[#FF5C8A] flex items-center gap-1 underline underline-offset-2"
+                            className="mt-3 text-xs text-[var(--text-muted)] hover:text-[#FF5C8A] flex items-center gap-1.5 underline underline-offset-4 transition-colors"
                           >
-                            <RotateCcw className="w-3 h-3" />
+                            <RotateCcw className="w-3.5 h-3.5" />
                             <span>Zapal świecę ponownie</span>
                           </button>
                         )}
                       </div>
 
                       {/* SEQUENTIAL ILLUMINATION OF K-A-M-I-L-A */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 pt-4 border-t border-[var(--border-line)]">
                         <div className="text-center">
-                          <h3 className="font-serif-display text-2xl font-bold text-[var(--text-primary)]">
+                          <h3 className="font-serif-display text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
                             Barwy Szczęścia Kamili
                           </h3>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {isCandleLit
+                              ? 'Zgaś płomień powyżej, aby odkryć każdą literę imienia...'
+                              : 'Każda litera reprezentuje jeden wyjątkowy odcień Twojej dobroci:'}
+                          </p>
                         </div>
 
+                        {/* 6 Letters Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {kamilaLetters.map((item, idx) => {
                             const isRevealed = !isCandleLit && idx < revealedLettersCount;
                             return (
                               <div
                                 key={idx}
-                                className={`rounded-xl p-5 border transition-all duration-500 flex flex-col justify-between ${
+                                className={`rounded-xl p-5 border transition-all duration-700 flex flex-col justify-between ${
                                   isRevealed
-                                    ? 'bg-[var(--surface-raised)] border-[#FF5C8A] shadow-[0_0_20px_rgba(255,92,138,0.2)] -translate-y-0.5'
+                                    ? 'bg-[var(--surface-raised)] border-[#FF5C8A] shadow-[0_0_25px_rgba(255,92,138,0.25)] -translate-y-1'
                                     : isCandleLit
                                     ? 'bg-[var(--surface-raised)]/70 border-[var(--border-line)]'
-                                    : 'bg-[var(--surface-raised)]/40 border-[var(--border-line)] opacity-60'
+                                    : 'bg-[var(--surface-raised)]/40 border-[var(--border-line)] opacity-50'
                                 }`}
                               >
                                 <div>
                                   <div className="flex items-center justify-between mb-2">
                                     <span
-                                      className={`font-serif-display text-5xl font-black leading-none transition-all duration-500 ${
-                                        isRevealed ? 'text-[#FF5C8A] scale-105' : 'text-[var(--text-muted)]'
+                                      className={`font-serif-display text-5xl font-black leading-none transition-all duration-700 ${
+                                        isRevealed ? 'text-[#FF5C8A] scale-110 drop-shadow-[0_0_12px_rgba(255,92,138,0.5)]' : 'text-[var(--text-muted)]'
                                       }`}
                                     >
                                       {item.letter}
@@ -841,12 +1527,25 @@ export default function App() {
                             );
                           })}
                         </div>
+
+                        {/* Turn page prompt */}
+                        {isLetterSequenceFinished && (
+                          <div className="pt-6 flex justify-center">
+                            <button
+                              onClick={() => setCurrentChapter(1)}
+                              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF5C8A] text-black font-bold text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,92,138,0.5)] hover:bg-[#F28DAE] transition-all"
+                            >
+                              <span>Przejdź do Rozdziału I: Sceny z Domu</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* ===============================================================
-                      CHAPTER 1: DWA SERIALE & NAJLEPSZE SCENY
+                      CHAPTER 1: DWA SERIALE & NAJLEPSZE SCENY Z DOMU
                      =============================================================== */}
                   {currentChapter === 1 && (
                     <div className="space-y-10 animate-fade-in">
@@ -854,7 +1553,7 @@ export default function App() {
                       <div className="space-y-4">
                         <div className="text-center space-y-1">
                           <div className="text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
-                            Rozdział I
+                            Rozdział I · Prawdy z Ulubionych Seriali
                           </div>
                           <h3 className="font-serif-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
                             Dwa seriale, jedna prawda
@@ -878,204 +1577,297 @@ export default function App() {
                               Codzienność to wielka sztuka
                             </h4>
                             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                              Najpiękniejsze chwile nie potrzebują wielkich dekoracji – mieszkają w kubku gorącej herbaty i czułym uśmiechu.
+                              Prawdziwe historie nie rodzą się na wielkich scenach, lecz w małych gestach – w zaparzonej herbacie i cichym spojrzeniu pełnym troski.
                             </p>
                           </div>
 
                           <div className="bg-[var(--surface-raised)] border border-[var(--border-line)] rounded-xl p-5 space-y-2">
                             <span className="font-serif-display text-2xl font-bold text-[#FF5C8A]">03</span>
                             <h4 className="font-serif-display text-lg font-bold text-[var(--text-primary)]">
-                              Nadzieja po każdej burzy
+                              Po każdej burzy wstaje słońce
                             </h4>
                             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                              Twój spokojny głos i mądrość przynoszą słońce. Zawsze potrafisz napełnić nas wiarą, że ze wszystkim sobie poradzimy.
+                              Choć życie pisze nieprzewidziane scenariusze, Twoja obecność daje nam pewność, że jutro przyniesie dobrą nadzieję.
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Section B: Najlepsze sceny z Twojego domu */}
+                      {/* Section B: Sceny z domu Kamili */}
                       <div className="space-y-4 pt-6 border-t border-[var(--border-line)]">
                         <div className="text-center space-y-1">
                           <div className="text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
-                            Rozdział II
+                            Pamiętnik Chwil
                           </div>
-                          <h3 className="font-serif-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
-                            Najlepsze sceny z Twojego domu
+                          <h3 className="font-serif-display text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
+                            Ulubione sceny z domu Kamili
                           </h3>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {scenes.map((scene) => (
-                            <div
-                              key={scene.id}
-                              className="bg-[var(--surface-raised)] border border-[var(--border-line)] rounded-xl p-5 space-y-2"
-                            >
-                              <div className="flex justify-between text-xs text-[var(--text-muted)] font-semibold">
-                                <span>{scene.tag}</span>
-                                <span className="text-[#FF5C8A]">#{scene.id}</span>
-                              </div>
-                              <h4 className="font-serif-display text-xl font-bold text-[var(--text-primary)]">
-                                {scene.title}
+                          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-line)] flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-[#FF5C8A] tracking-wider">Scena 1 · Poranek</span>
+                              <h4 className="font-serif-display text-lg font-bold text-[var(--text-primary)]">
+                                Poranna herbata z cytryną
                               </h4>
-                              <div className="font-cursive text-xl text-[#FF5C8A]">
-                                {scene.quote}
-                              </div>
                               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                                {scene.description}
+                                Cichy świt w kuchni, zapach świeżo parzonej herbaty i chwila spokoju przed rozpoczęciem dnia. To Twój rytuał, który wprowadza ład w cały dom.
                               </p>
                             </div>
-                          ))}
+                            <div className="font-cursive text-lg text-[#F8C8D8] mt-3">
+                              „Najpierw wypijmy herbatę, potem wszystko się ułoży.”
+                            </div>
+                          </div>
+
+                          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-line)] flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-[#FF5C8A] tracking-wider">Scena 2 · Południe</span>
+                              <h4 className="font-serif-display text-lg font-bold text-[var(--text-primary)]">
+                                Niedzielny stół i zapach ciasta
+                              </h4>
+                              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                                Gdy z piekarnika dochodzi słodki zapach, a stół nakryty jest dla wszystkich, których kochasz. Nikt nie potrafi tak ugościć i stworzyć święta ze zwykłej niedzieli.
+                              </p>
+                            </div>
+                            <div className="font-cursive text-lg text-[#F8C8D8] mt-3">
+                              „Zjedzcie jeszcze kawałek, specjalnie dla Was upiekłam.”
+                            </div>
+                          </div>
+
+                          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-line)] flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-[#FF5C8A] tracking-wider">Scena 3 · Popołudnie</span>
+                              <h4 className="font-serif-display text-lg font-bold text-[var(--text-primary)]">
+                                Rozmowy, które leczą wszystko
+                              </h4>
+                              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                                Wystarczy jedno Twoje spojrzenie, by wiedzieć, co leży na sercu. Potrafisz wysłuchać tak, że każdy ciężar staje się lżejszy.
+                              </p>
+                            </div>
+                            <div className="font-cursive text-lg text-[#F8C8D8] mt-3">
+                              „Pamiętaj, że z każdej sytuacji jest dobre wyjście.”
+                            </div>
+                          </div>
+
+                          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-line)] flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-[#FF5C8A] tracking-wider">Scena 4 · Wieczór</span>
+                              <h4 className="font-serif-display text-lg font-bold text-[var(--text-primary)]">
+                                Bezpieczna przystań o zmierzchu
+                              </h4>
+                              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                                Ciepłe światło w oknie, znajomy odgłos kroków i świadomość, że jest takie miejsce na ziemi, do którego zawsze można wrócić i być sobą.
+                              </p>
+                            </div>
+                            <div className="font-cursive text-lg text-[#F8C8D8] mt-3">
+                              „Najważniejsze, że jesteśmy razem.”
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Navigation buttons */}
+                        <div className="pt-6 flex items-center justify-between">
+                          <button
+                            onClick={() => setCurrentChapter(0)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[var(--border-line)] text-xs text-[var(--text-secondary)] hover:text-[#FF5C8A]"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            <span>Wróć do Świecy</span>
+                          </button>
+
+                          <button
+                            onClick={() => setCurrentChapter(2)}
+                            className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-[#FF5C8A] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#F28DAE] shadow-[0_0_15px_rgba(255,92,138,0.4)]"
+                          >
+                            <span>Przejdź do Listu od Amelie</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* ===============================================================
-                      CHAPTER 2: LIST URODZINOWY OD AMELIE & NAPISY KOŃCOWE
+                      CHAPTER 2: HEARTFELT LETTER FROM AMELIE & CREDITS
                      =============================================================== */}
                   {currentChapter === 2 && (
                     <div className="space-y-10 animate-fade-in">
-                      {/* Section A: The Heartfelt Letter */}
-                      <div className="bg-[var(--surface-raised)] border border-[var(--border-line)] rounded-2xl p-7 sm:p-9 space-y-6 shadow-sm">
-                        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-line)]">
-                          <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-bold text-[#FF5C8A]">
-                            <Heart className="w-4 h-4 fill-[#FF5C8A]" />
-                            <span>List od Amelie</span>
+                      {/* The Letter */}
+                      <div className="max-w-2xl mx-auto bg-[var(--surface-raised)] border border-[var(--border-line)] rounded-2xl p-6 sm:p-10 space-y-6 shadow-2xl relative">
+                        <div className="flex items-center justify-between border-b border-[var(--border-line)] pb-4">
+                          <div className="flex items-center gap-2">
+                            <Heart className="w-4 h-4 text-[#FF5C8A] fill-current" />
+                            <span className="text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
+                              Rozdział II · List od Amelie
+                            </span>
                           </div>
-
-                          <div className="flex items-center gap-2 no-print">
-                            <button
-                              onClick={handleCopyLetter}
-                              className="px-3 py-1 rounded-lg text-xs font-semibold border border-[var(--border-line)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#FF5C8A] transition-colors flex items-center gap-1"
-                            >
-                              {copiedLetter ? <Check className="w-3.5 h-3.5 text-[#FF5C8A]" /> : <Share2 className="w-3.5 h-3.5" />}
-                              <span>{copiedLetter ? 'Skopiowano' : 'Kopiuj'}</span>
-                            </button>
-                            <button
-                              onClick={() => window.print()}
-                              className="px-3 py-1 rounded-lg text-xs font-semibold border border-[var(--border-line)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#FF5C8A] transition-colors flex items-center gap-1"
-                            >
-                              <Printer className="w-3.5 h-3.5" />
-                              <span>Drukuj</span>
-                            </button>
-                          </div>
+                          <span className="text-xs text-[var(--text-muted)]">18 Października</span>
                         </div>
 
-                        <div className="space-y-4 font-serif text-base sm:text-lg leading-relaxed text-[var(--text-primary)]">
-                          <p className="font-semibold text-2xl text-[#FF5C8A]">
-                            Droga Kamilo,
-                          </p>
-                          <p>
-                            Gdyby ktoś spróbował napisać scenariusz do najpiękniejszej opowieści o naszym domu, Ty byłabyś jego najjaśniejszą postacią. To Ty każdego dnia przypominasz nam, że prawdziwe szczęście nie potrzebuje głośnych dekoracji – rodzi się przy wspólnym stole, w cieple podanego kubka herbaty i w Twoim serdecznym uśmiechu, który potrafi rozproszyć nawet największe troski.
-                          </p>
-                          <p>
-                            Dziękujemy Ci za Twoją anielską cierpliwość, za mądrość, która zawsze wskazuje właściwą drogę, i za to niezwykłe poczucie bezpieczeństwa, jakim nas otaczasz. Dziękujemy za każdy obiad przygotowany z miłością, za wszystkie wysłuchane historie i za to, że w Twoim sercu zawsze jest miejsce na wyrozumiałość i czułość.
-                          </p>
-                          <p>
-                            W dniu Twoich urodzin życzymy Ci niegasnącego zdrowia, głębokiego spokoju ducha, czasu na Twoje małe pasje i ludzi wokół, którzy będą dbać o Ciebie tak pięknie, jak Ty dbasz o nas. Niech każdy kolejny dzień mieni się dla Ciebie najjaśniejszymi odcieniami szczęścia.
-                          </p>
-                          <p className="font-serif-display font-bold text-2xl sm:text-3xl text-[#FF5C8A] pt-1">
-                            Sto lat, Kamilo!
-                          </p>
+                        <div className="space-y-4 text-sm sm:text-base text-[var(--text-primary)] leading-relaxed font-serif-display text-justify sm:text-left">
+                          {letterParagraphs.map((para, i) => (
+                            <p
+                              key={i}
+                              className={
+                                i === 0
+                                  ? 'text-2xl sm:text-3xl font-bold text-[#FF5C8A]'
+                                  : i === letterParagraphs.length - 1
+                                  ? 'font-bold text-xl sm:text-2xl text-[#FF5C8A] pt-2'
+                                  : ''
+                              }
+                            >
+                              {para}
+                            </p>
+                          ))}
                         </div>
 
-                        <div className="pt-4 border-t border-[var(--border-line)] flex justify-between items-center">
-                          <span className="text-xs text-[var(--text-muted)]">18 października</span>
-                          <div className="text-right">
-                            <div className="font-cursive text-2xl text-[#FF5C8A] font-bold">
+                        {/* Signature */}
+                        <div className="border-t border-[var(--border-line)] pt-5 flex items-center justify-between">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
+                              Podarunek z całego serca
+                            </div>
+                            <div className="font-cursive text-2xl font-bold text-[#FF5C8A]">
                               Z bezgraniczną miłością, Amelie
                             </div>
-                            <div className="text-xs text-[var(--text-muted)]">oraz Twoja Rodzina</div>
                           </div>
+
+                          <button
+                            onClick={() => window.print()}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-line)] text-xs text-[var(--text-secondary)] hover:text-[#FF5C8A] no-print"
+                            title="Wydrukuj list na pamiątkę"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Drukuj</span>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Section B: End Credits */}
-                      <div className="bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-line)] p-6 sm:p-8 divide-y divide-[var(--border-line)]">
-                        <div className="py-2.5 flex justify-between text-xs sm:text-sm">
-                          <span className="text-[#FF5C8A] font-bold uppercase">W roli głównej:</span>
-                          <span className="font-semibold text-[var(--text-primary)]">Kamila (Niezastąpiona Mama)</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between text-xs sm:text-sm">
-                          <span className="text-[#FF5C8A] font-bold uppercase">Reżyseria podarunku:</span>
-                          <span className="font-bold text-[#FF5C8A]">Amelie</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between text-xs sm:text-sm">
-                          <span className="text-[#FF5C8A] font-bold uppercase">Scenariusz:</span>
-                          <span>Bezwarunkowa Miłość</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between text-xs sm:text-sm">
-                          <span className="text-[#FF5C8A] font-bold uppercase">Produkcja:</span>
-                          <span>Amelie & Twoja Rodzina</span>
+                      {/* Traditional Polish Birthday Song ("Sto lat") Player Banner */}
+                      <div className="max-w-2xl mx-auto p-4 rounded-xl bg-[var(--surface-raised)] border border-[#FF5C8A]/40 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+                        <div className="flex items-center gap-3.5">
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg select-none transition-all ${
+                              soundEnabled
+                                ? 'bg-[#FF5C8A] text-black shadow-[0_0_20px_rgba(255,92,138,0.6)] animate-pulse'
+                                : 'bg-[#1E1E22] text-[#B5B5BC] border border-[var(--border-line)]'
+                            }`}
+                          >
+                            🎵
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-[#FF5C8A] tracking-wider">
+                              Tradycyjna Polska Melodia Urodzinowa
+                            </div>
+                            <div className="font-serif-display font-bold text-lg text-[var(--text-primary)]">
+                              „Sto lat, sto lat, niech żyje, żyje nam!”
+                            </div>
+                            <div className="text-[11px] text-[var(--text-muted)]">
+                              Nostalgiczna aranżacja w stylu pozytywki celestowej
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="pt-6 text-center">
-                          <div className="font-serif-display font-cursive text-4xl sm:text-5xl font-bold text-[#FF5C8A]">
+                        <button
+                          onClick={toggleSound}
+                          className={`px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${
+                            soundEnabled
+                              ? 'bg-[#FF5C8A] text-black shadow-[0_0_18px_rgba(255,92,138,0.6)] hover:bg-[#F28DAE]'
+                              : 'bg-[var(--surface-elevated)] text-[var(--text-primary)] hover:border-[#FF5C8A] border border-[var(--border-line)]'
+                          }`}
+                        >
+                          {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                          <span>{soundEnabled ? 'Zatrzymaj melodię' : 'Zagraj „Sto lat”'}</span>
+                        </button>
+                      </div>
+
+                      {/* TV Series End Credits */}
+                      <div className="max-w-2xl mx-auto text-center space-y-6 pt-6 border-t border-[var(--border-line)]">
+                        <div className="text-xs uppercase tracking-widest font-bold text-[#FF5C8A]">
+                          Napisy Końcowe · Odcinek Specjalny
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div className="text-right text-[var(--text-muted)]">W roli głównej:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Kamila</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Scenariusz:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Bezwarunkowa Miłość</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Reżyseria życia:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Kamila</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Ciepło i bezpieczeństwo:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Kamila</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Najpyszniejsze obiady świata:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Kamila</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Pomysł & Realizacja podarunku:</div>
+                          <div className="text-left font-bold text-[#FF5C8A]">Amelie</div>
+
+                          <div className="text-right text-[var(--text-muted)]">Produkcja:</div>
+                          <div className="text-left font-bold text-[var(--text-primary)]">Amelie & Twoja Rodzina</div>
+                        </div>
+
+                        {/* Ciąg dalszy nastąpi */}
+                        <div className="pt-4">
+                          <div className="font-serif-display italic text-3xl sm:text-4xl font-bold text-[#FF5C8A]">
                             Ciąg dalszy nastąpi…
                           </div>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">
+                            Bo najpiękniejsze wspólne sceny wciąż są przed nami.
+                          </p>
+                        </div>
+
+                        {/* Back navigation */}
+                        <div className="pt-4 flex justify-center gap-3">
+                          <button
+                            onClick={() => setCurrentChapter(1)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[var(--border-line)] text-xs text-[var(--text-secondary)] hover:text-[#FF5C8A]"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            <span>Wróć do Scen z Domu</span>
+                          </button>
+
+                          <button
+                            onClick={handleCloseBook}
+                            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border-line)] text-xs text-[var(--text-primary)] hover:border-[#FF5C8A] hover:text-[#FF5C8A]"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                            <span>Zamknij księgę na okładkę</span>
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* SPREAD PAGINATION CONTROLS (TURNING PAGES INSIDE THE BOOK) */}
-                <div className="border-t border-[var(--border-line)] pt-4 flex items-center justify-between no-print">
-                  <button
-                    onClick={handlePrevChapter}
-                    disabled={currentChapter === 0}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      currentChapter === 0
-                        ? 'text-[var(--text-muted)]/40 cursor-not-allowed'
-                        : 'text-[var(--text-secondary)] hover:text-[#FF5C8A]'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span>Poprzednia strona</span>
-                  </button>
-
-                  <div className="flex gap-2">
-                    {[0, 1, 2].map((idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          if (soundEnabled) audio.playPageTurn();
-                          setCurrentChapter(idx);
-                        }}
-                        className={`w-2.5 h-2.5 rounded-full transition-all ${
-                          currentChapter === idx
-                            ? 'bg-[#FF5C8A] scale-125'
-                            : 'bg-[var(--border-line)] hover:bg-[#FF5C8A]/50'
-                        }`}
-                        title={`Przejdź do strony ${idx + 1}`}
-                      />
-                    ))}
+                {/* SPREAD FOOTER */}
+                <div className="pt-4 border-t border-[var(--border-line)]/50 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[var(--text-muted)] gap-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-[#FF5C8A]" />
+                    <span>
+                      {birthdayInfo.isToday
+                        ? 'Dziś są urodziny Kamili! Sto lat!'
+                        : `18 Października · Pozostało ${birthdayInfo.days} dni`}
+                    </span>
                   </div>
 
-                  <button
-                    onClick={handleNextChapter}
-                    disabled={currentChapter === 2}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      currentChapter === 2
-                        ? 'text-[var(--text-muted)]/40 cursor-not-allowed'
-                        : 'text-[var(--text-secondary)] hover:text-[#FF5C8A]'
-                    }`}
-                  >
-                    <span>Następna strona</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  <div>
+                    Podarunek dla Mamy Kamili · Przygotowany z miłością przez <span className="text-[#FF5C8A] font-semibold">Amelie</span>
+                  </div>
                 </div>
-
               </div>
             )}
           </div>
         </div>
       </main>
 
-      {/* QUIET FOOTER */}
-      <footer className="text-center py-4 text-xs text-[var(--text-muted)] no-print">
-        Podarunek dla Mamy Kamili · Przygotowany z miłością przez <span className="text-[#FF5C8A] font-semibold">Amelie</span>
+      {/* FOOTER */}
+      <footer className="w-full text-center py-4 text-xs text-[var(--text-muted)] border-t border-[var(--border-line)]/40 no-print">
+        Dedykowane wspaniałej Mamie Kamili · Autor podarunku: <strong className="text-[var(--text-primary)]">Amelie</strong> · 18 Października
       </footer>
     </div>
   );

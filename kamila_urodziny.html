@@ -63,10 +63,16 @@
     .book-box {
       width: 100%;
       max-width: 500px;
-      background: #151518;
-      border: 2px solid #2A2A2E;
+      background-color: #121115;
+      background-image: 
+        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 55%),
+        radial-gradient(circle at 1.5px 1.5px, rgba(255, 255, 255, 0.025) 1px, transparent 0),
+        radial-gradient(circle at 3.5px 3.5px, rgba(0, 0, 0, 0.45) 1px, transparent 0),
+        linear-gradient(145deg, #232128 0%, #17161B 35%, #100F13 70%, #09080B 100%);
+      background-size: 100% 100%, 4px 4px, 4px 4px, 100% 100%;
+      border: 2px solid #2F2D36;
       border-radius: 1.25rem;
-      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.9);
+      box-shadow: 0 35px 85px rgba(0, 0, 0, 0.95), inset 0 0 55px rgba(0, 0, 0, 0.85);
       position: relative;
       transition: max-width 0.8s cubic-bezier(0.2, 0.8, 0.25, 1);
       overflow: hidden;
@@ -85,6 +91,9 @@
       cursor: pointer;
       transform-origin: left center;
       transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.25, 1);
+      background-image:
+        linear-gradient(115deg, rgba(255, 255, 255, 0.04) 0%, transparent 35%, rgba(0, 0, 0, 0.4) 80%),
+        linear-gradient(160deg, #242229 0%, #18171C 30%, #121115 65%, #0B0A0D 100%);
     }
     .cover-view:hover {
       border-color: var(--pink-signature);
@@ -96,6 +105,22 @@
       min-height: 600px;
       flex-direction: column;
       justify-content: space-between;
+      position: relative;
+      background-color: var(--surface-raised);
+    }
+    .inner-spread::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.5;
+      background-image:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        radial-gradient(circle at 20% 80%, rgba(0, 0, 0, 0.18) 1px, transparent 1px),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.015) 0px, rgba(0, 0, 0, 0.015) 1px, transparent 1px, transparent 3px),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 4px);
+      background-size: 8px 8px, 12px 12px, 100% 3px, 4px 100%;
     }
 
     /* Candle realistic animations */
@@ -206,9 +231,14 @@
           <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">
             Księga Życzeń · Podarunek od <span style="color: var(--pink-signature);">Amelie</span>
           </span>
-          <button onclick="closeBook()" style="background: none; border: 1px solid var(--border-line); color: var(--text-secondary); padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer;">
-            Zamknij księgę
-          </button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="musicToggleBtn" onclick="toggleStoLat()" style="background: var(--surface-elevated); border: 1px solid var(--border-line); color: var(--pink-signature); padding: 0.3rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; cursor: pointer; font-weight: 700;">
+              🎵 Włącz „Sto lat”
+            </button>
+            <button onclick="closeBook()" style="background: none; border: 1px solid var(--border-line); color: var(--text-secondary); padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer;">
+              Zamknij księgę
+            </button>
+          </div>
         </div>
 
         <!-- PAGE 1: CANDLE & LETTERS -->
@@ -299,7 +329,7 @@
           </div>
         </div>
 
-        <!-- PAGE 2: LIST URODZINOWY OD AMELIO -->
+        <!-- PAGE 2: LIST URODZINOWY OD AMELIE -->
         <div id="page2" class="page-tab">
           <div style="background: var(--surface-raised); border: 1px solid var(--border-line); border-radius: 1rem; padding: 2rem; margin: 1.5rem 0;">
             <div class="kicker">Rozdział II · List od Amelie</div>
@@ -397,6 +427,71 @@
       for (let i = 0; i < 6; i++) {
         const t = document.getElementById('tile-' + i);
         if (t) t.classList.remove('lit');
+      }
+    }
+
+    // Traditional Polish "Sto lat" music box synthesizer
+    let audioCtx = null;
+    let isStoLatPlaying = false;
+    let stoLatTimer = null;
+    const C3 = 130.81, G3 = 196.0, C4 = 261.63, D4 = 293.66, E4 = 329.63, F4 = 349.23, G4 = 392.0, A4 = 440.0, B4 = 493.88, C5 = 523.25;
+    const notesScore = [
+      { t: 0, d: 0.9, p: G4 }, { t: 1, d: 1.8, p: E4 }, { t: 0, d: 1.5, p: C3 },
+      { t: 3, d: 0.9, p: G4 }, { t: 4, d: 1.8, p: E4 }, { t: 3, d: 1.5, p: C3 },
+      { t: 6, d: 0.45, p: G4 }, { t: 6.5, d: 0.45, p: A4 }, { t: 7, d: 0.9, p: G4 }, { t: 8, d: 0.9, p: F4 },
+      { t: 9, d: 0.9, p: E4 }, { t: 10, d: 1.8, p: D4 }, { t: 9, d: 1.5, p: G3 },
+      { t: 12, d: 0.9, p: F4 }, { t: 13, d: 1.8, p: D4 }, { t: 12, d: 1.5, p: G3 },
+      { t: 15, d: 0.9, p: F4 }, { t: 16, d: 1.8, p: D4 }, { t: 15, d: 1.5, p: G3 },
+      { t: 18, d: 0.45, p: F4 }, { t: 18.5, d: 0.45, p: G4 }, { t: 19, d: 0.9, p: F4 }, { t: 20, d: 0.9, p: E4 },
+      { t: 21, d: 0.9, p: D4 }, { t: 22, d: 1.8, p: C4 }, { t: 21, d: 1.5, p: C3 },
+      { t: 24, d: 0.9, p: G4 }, { t: 25, d: 1.8, p: E4 }, { t: 24, d: 1.5, p: C3 },
+      { t: 27, d: 0.9, p: G4 }, { t: 28, d: 1.8, p: E4 }, { t: 27, d: 1.5, p: C3 },
+      { t: 30, d: 0.45, p: G4 }, { t: 30.5, d: 0.45, p: A4 }, { t: 31, d: 0.9, p: G4 }, { t: 32, d: 0.9, p: F4 },
+      { t: 33, d: 0.9, p: E4 }, { t: 34, d: 1.8, p: D4 }, { t: 33, d: 1.5, p: G3 },
+      { t: 36, d: 0.9, p: G4 }, { t: 37, d: 0.9, p: A4 }, { t: 38, d: 0.9, p: B4 },
+      { t: 39, d: 2.8, p: C5 }, { t: 39, d: 2.5, p: C3 }
+    ];
+
+    function playBell(freq, time, dur) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(time);
+      osc.stop(time + dur + 0.05);
+    }
+
+    function scheduleStoLat() {
+      if (!isStoLatPlaying || !audioCtx) return;
+      const beat = 0.52;
+      const now = audioCtx.currentTime + 0.05;
+      notesScore.forEach(n => {
+        playBell(n.p, now + n.t * beat, n.d * beat);
+      });
+      stoLatTimer = setTimeout(() => {
+        if (isStoLatPlaying) scheduleStoLat();
+      }, 44 * beat * 1000);
+    }
+
+    function toggleStoLat() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      isStoLatPlaying = !isStoLatPlaying;
+      const btn = document.getElementById('musicToggleBtn');
+      if (isStoLatPlaying) {
+        if (btn) btn.textContent = '🎵 „Sto lat” gra...';
+        scheduleStoLat();
+      } else {
+        if (btn) btn.textContent = '🎵 Włącz „Sto lat”';
+        if (stoLatTimer) clearTimeout(stoLatTimer);
       }
     }
   </script>
