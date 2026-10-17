@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M jak Mama – Księga Życzeń dla Kamili od Amelie</title>
+  <meta name="description" content="Podarunek urodzinowy dla Mamy Kamili przygotowany przez Amelie.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0B0D;
+      --surface-raised: #151518;
+      --surface-elevated: #1E1E22;
+      --border-line: #2A2A2E;
+      --text-main: #F2F2F4;
+      --text-secondary: #B5B5BC;
+      --text-muted: #6B6B73;
+      --pink-blush: #F8C8D8;
+      --pink-soft: #F28DAE;
+      --pink-signature: #FF5C8A;
+      --pink-deep: #C2185B;
+    }
+
+    [data-theme="light"] {
+      --bg: #FAF9FA;
+      --surface-raised: #FFFFFF;
+      --surface-elevated: #F2F2F5;
+      --border-line: #E2E2E8;
+      --text-main: #0B0B0D;
+      --text-secondary: #4A4A52;
+      --text-muted: #6B6B73;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      transition: background-color 0.4s ease, color 0.4s ease;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-x: hidden;
+    }
+
+    .font-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+    .font-cursive { font-family: 'Caveat', cursive; }
+
+    .book-stage {
+      perspective: 1800px;
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+    }
+
+    .book-box {
+      width: 100%;
+      max-width: 500px;
+      background: #151518;
+      border: 2px solid #2A2A2E;
+      border-radius: 1.25rem;
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.9);
+      position: relative;
+      transition: max-width 0.8s cubic-bezier(0.2, 0.8, 0.25, 1);
+      overflow: hidden;
+    }
+
+    .book-box.open {
+      max-width: 880px;
+    }
+
+    .cover-view {
+      padding: 2.5rem 2rem;
+      min-height: 540px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transform-origin: left center;
+      transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.25, 1);
+    }
+    .cover-view:hover {
+      border-color: var(--pink-signature);
+    }
+
+    .inner-spread {
+      display: none;
+      padding: 2rem;
+      min-height: 600px;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Candle realistic animations */
+    @keyframes realFlameFlicker {
+      0%, 100% { transform: scale(1) rotate(-1deg); filter: drop-shadow(0 0 14px rgba(255, 92, 138, 0.95)); }
+      30% { transform: scale(0.96, 1.05) rotate(1.8deg); filter: drop-shadow(0 0 18px rgba(255, 92, 138, 1)); }
+      70% { transform: scale(1.04, 0.95) rotate(-1.5deg); filter: drop-shadow(0 0 12px rgba(242, 141, 174, 0.85)); }
+    }
+    .flame-real {
+      animation: realFlameFlicker 2s infinite ease-in-out;
+      transform-origin: 100px 108px;
+    }
+
+    @keyframes smokeWispRise {
+      0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+      50% { transform: translateY(-40px) scale(1.2) translateX(4px); opacity: 0.4; }
+      100% { transform: translateY(-90px) scale(2) translateX(-8px); opacity: 0; }
+    }
+    .smoke-wisp {
+      animation: smokeWispRise 1.8s ease-out forwards;
+      transform-origin: 102px 108px;
+    }
+
+    .kicker {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: var(--pink-signature);
+      margin-bottom: 0.5rem;
+    }
+
+    .letter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .letter-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-line);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      transition: all 0.4s ease;
+    }
+    .letter-card.lit {
+      border-color: var(--pink-signature);
+      box-shadow: 0 0 18px rgba(255, 92, 138, 0.25);
+    }
+
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .page-tab {
+      display: none;
+    }
+    .page-tab.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confettiCanvas"></canvas>
+
+  <div class="book-stage">
+    <div id="bookBox" class="book-box">
+      <!-- 3D BOOK COVER VIEW -->
+      <div id="coverView" class="cover-view" onclick="openBook()">
+        <div style="text-align: center;">
+          <div class="kicker">Księga Życzeń · 18 Października</div>
+          <h1 class="font-serif" style="font-size: 2.8rem; font-weight: 700; line-height: 1.15; margin: 0.5rem 0;">
+            Dla Mamy <span style="color: var(--pink-signature);">Kamili</span>
+          </h1>
+          <p class="font-serif" style="font-style: italic; color: var(--text-secondary); font-size: 1.2rem;">
+            Odcinek Specjalny: „M jak Mama”
+          </p>
+        </div>
+
+        <div style="width: 80px; height: 80px; background: #1E1E22; border: 2px solid var(--pink-signature); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 2rem auto; box-shadow: 0 0 30px rgba(255,92,138,0.35);">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="var(--pink-signature)" stroke="var(--pink-signature)">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+        </div>
+
+        <div style="text-align: center; border-top: 1px solid var(--border-line); pt: 1rem;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">
+            Podarunek stworzony z miłością przez
+          </div>
+          <div class="font-serif" style="font-size: 1.8rem; font-weight: 700; color: var(--pink-signature); margin: 0.25rem 0 1rem;">
+            Amelie
+          </div>
+          <div style="display: inline-block; background: var(--pink-signature); color: #0B0B0D; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; padding: 0.55rem 1.4rem; border-radius: 9999px;">
+            Dotknij, aby otworzyć księgę
+          </div>
+        </div>
+      </div>
+
+      <!-- SPREAD VIEW (INSIDE THE BOOK) -->
+      <div id="innerSpread" class="inner-spread">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-line); padding-bottom: 0.75rem;">
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">
+            Księga Życzeń · Podarunek od <span style="color: var(--pink-signature);">Amelie</span>
+          </span>
+          <button onclick="closeBook()" style="background: none; border: 1px solid var(--border-line); color: var(--text-secondary); padding: 0.3rem 0.6rem; border-radius: 0.4rem; font-size: 0.75rem; cursor: pointer;">
+            Zamknij księgę
+          </button>
+        </div>
+
+        <!-- PAGE 1: CANDLE & LETTERS -->
+        <div id="page1" class="page-tab active">
+          <div style="text-align: center; margin: 1.5rem 0;">
+            <div class="kicker">Rytuał Urodzinowy</div>
+            <h2 id="candleHeading" class="font-serif" style="font-size: 2.2rem; font-weight: 700;">Święty Płomień Życzenia</h2>
+            <p id="candleLead" style="color: var(--text-secondary); font-size: 0.9rem; max-width: 480px; margin: 0.5rem auto;">
+              Pomyśl w sercu najpiękniejsze życzenie. Dotknij płomienia świecy na ekranie, aby go zgasić i odsłonić tajemnicę imienia.
+            </p>
+
+            <!-- REALISTIC CANDLE -->
+            <div onclick="extinguishCandle()" style="display: inline-block; cursor: pointer; margin: 1rem 0;">
+              <svg width="180" height="230" viewBox="0 0 200 250">
+                <defs>
+                  <linearGradient id="waxGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#1E1E22"/>
+                    <stop offset="35%" stopColor="#35353C"/>
+                    <stop offset="70%" stopColor="#25252A"/>
+                    <stop offset="100%" stopColor="#121215"/>
+                  </linearGradient>
+                  <radialGradient id="flameGrad" cx="50%" cy="70%" r="50%">
+                    <stop offset="0%" stopColor="#FFF"/>
+                    <stop offset="35%" stopColor="#F8C8D8"/>
+                    <stop offset="70%" stopColor="#FF5C8A"/>
+                    <stop offset="100%" stopColor="#C2185B"/>
+                  </radialGradient>
+                </defs>
+
+                <ellipse cx="100" cy="235" rx="70" ry="10" fill="#151518" stroke="#2A2A2E"/>
+                <ellipse cx="100" cy="232" rx="60" ry="8" fill="#1E1E22"/>
+                <path d="M 65 125 C 65 120, 135 120, 135 125 L 135 228 C 135 232, 65 232, 65 228 Z" fill="url(#waxGrad)" stroke="#2A2A2E"/>
+                <ellipse cx="100" cy="125" rx="35" ry="8" fill="#25252A" stroke="#3A3A42"/>
+                <path d="M 100 125 Q 99 114 102 108" fill="none" stroke="#121215" stroke-width="2.5" stroke-linecap="round"/>
+                <circle id="wickDot" cx="102" cy="108" r="1.5" fill="#FF5C8A"/>
+
+                <g id="realFlameG" class="flame-real">
+                  <path d="M 102 108 C 84 100, 78 70, 101 42 C 124 70, 118 100, 102 108 Z" fill="url(#flameGrad)"/>
+                  <path d="M 102 108 C 94 104, 92 84, 101 64 C 110 84, 108 104, 102 108 Z" fill="#FFF"/>
+                </g>
+
+                <g id="smokeWispG" class="smoke-wisp" style="display: none;">
+                  <path d="M 102 108 Q 98 90 104 75 T 98 45" fill="none" stroke="#B5B5BC" stroke-width="2" opacity="0.6"/>
+                  <circle cx="102" cy="98" r="3" fill="#6B6B73" opacity="0.4"/>
+                </g>
+              </svg>
+
+              <div>
+                <span id="candleBadge" style="display: inline-block; padding: 0.35rem 0.9rem; border-radius: 9999px; background: rgba(255,92,138,0.15); border: 1px solid rgba(255,92,138,0.5); color: var(--pink-signature); font-size: 0.75rem; font-weight: 700;">
+                  Dotknij świecy, aby zgasić płomień
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- K-A-M-I-L-A Tiles -->
+          <div class="letter-grid">
+            <div class="letter-card" id="tile-0">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--pink-blush);">K</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Kojąca obecność i spokój</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Twój uścisk i zrównoważony ton uciszają każdy pośpiech.</p>
+            </div>
+            <div class="letter-card" id="tile-1">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--pink-soft);">A</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Anielska cierpliwość</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Słuchasz sercem, bez cienia oceny, zawsze z miłością.</p>
+            </div>
+            <div class="letter-card" id="tile-2">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--pink-signature);">M</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Mądrość i matczyne serce</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Wiesz bez słów, kiedy doradzić, a kiedy mocno przytulić.</p>
+            </div>
+            <div class="letter-card" id="tile-3">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--pink-deep);">I</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Iskra domowej radości</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Twój uśmiech rozprasza każdy ponury dzień w roku.</p>
+            </div>
+            <div class="letter-card" id="tile-4">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--text-secondary);">L</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Lekarstwo na zmartwienia</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Herbata z cytryną, domowy obiad i „wszystko będzie dobrze”.</p>
+            </div>
+            <div class="letter-card" id="tile-5">
+              <span class="font-serif" style="font-size: 2.8rem; font-weight: 900; color: var(--pink-signature);">A</span>
+              <h4 class="font-serif" style="font-size: 1.15rem; font-weight: 700;">Absolutnie niezastąpiona</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">Jesteś fundamentem i spoiwem naszej rodziny.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 2: LIST URODZINOWY OD AMELIO -->
+        <div id="page2" class="page-tab">
+          <div style="background: var(--surface-raised); border: 1px solid var(--border-line); border-radius: 1rem; padding: 2rem; margin: 1.5rem 0;">
+            <div class="kicker">Rozdział II · List od Amelie</div>
+            <div class="font-serif" style="font-size: 1.15rem; line-height: 1.75;">
+              <p style="font-size: 1.5rem; font-weight: 700; color: var(--pink-signature); margin-bottom: 0.5rem;">Droga Kamilo,</p>
+              <p style="margin-bottom: 0.75rem;">
+                Gdyby ktoś spróbował napisać scenariusz do najpiękniejszej opowieści o naszym domu, Ty byłabyś jego najjaśniejszą postacią. To Ty każdego dnia przypominasz nam, że prawdziwe szczęście nie potrzebuje głośnych dekoracji – rodzi się przy wspólnym stole, w cieple podanego kubka herbaty i w Twoim serdecznym uśmiechu, który potrafi rozproszyć nawet największe troski.
+              </p>
+              <p style="margin-bottom: 0.75rem;">
+                Dziękujemy Ci za Twoją anielską cierpliwość, za mądrość, która zawsze wskazuje właściwą drogę, i za to niezwykłe poczucie bezpieczeństwa, jakim nas otaczasz. Dziękujemy za każdy obiad przygotowany z miłością, za wszystkie wysłuchane historie i za to, że w Twoim sercu zawsze jest miejsce na wyrozumiałość i czułość.
+              </p>
+              <p style="margin-bottom: 0.75rem;">
+                W dniu Twoich urodzin życzymy Ci niegasnącego zdrowia, głębokiego spokoju ducha, czasu na Twoje małe pasje i ludzi wokół, którzy będą dbać o Ciebie tak pięknie, jak Ty dbasz o nas. Niech każdy kolejny dzień mieni się dla Ciebie najjaśniejszymi odcieniami szczęścia.
+              </p>
+              <p style="font-size: 1.6rem; font-weight: 700; color: var(--pink-signature); margin-top: 1rem;">
+                Sto lat, Kamilo!
+              </p>
+            </div>
+            <div style="border-top: 1px solid var(--border-line); margin-top: 1.5rem; padding-top: 1rem; text-align: right;">
+              <div class="font-cursive" style="font-size: 1.6rem; font-weight: 700; color: var(--pink-signature);">Z bezgraniczną miłością, Amelie</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">oraz Twoja Rodzina</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FOOTER PAGINATION -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-line); padding-top: 1rem;">
+          <button id="prevBtn" onclick="switchPage(1)" style="background: none; border: 1px solid var(--border-line); color: var(--text-secondary); padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer;">
+            ← Rytuał Świecy
+          </button>
+          <span style="font-size: 0.8rem; color: var(--text-muted);" id="pageNum">Strona 1 z 2</span>
+          <button id="nextBtn" onclick="switchPage(2)" style="background: none; border: 1px solid var(--border-line); color: var(--text-secondary); padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer;">
+            List od Amelie →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="text-align: center; padding: 1rem; font-size: 0.75rem; color: var(--text-muted);">
+    Podarunek dla Mamy Kamili · Stworzony z miłością przez <span style="color: var(--pink-signature); font-weight: 700;">Amelie</span>
+  </footer>
+
+  <script>
+    function openBook() {
+      document.getElementById('coverView').style.display = 'none';
+      document.getElementById('bookBox').classList.add('open');
+      document.getElementById('innerSpread').style.display = 'flex';
+    }
+
+    function closeBook() {
+      document.getElementById('innerSpread').style.display = 'none';
+      document.getElementById('bookBox').classList.remove('open');
+      document.getElementById('coverView').style.display = 'flex';
+      relight();
+    }
+
+    function switchPage(p) {
+      if (p === 1) {
+        document.getElementById('page1').classList.add('active');
+        document.getElementById('page2').classList.remove('active');
+        document.getElementById('pageNum').textContent = 'Strona 1 z 2';
+      } else {
+        document.getElementById('page1').classList.remove('active');
+        document.getElementById('page2').classList.add('active');
+        document.getElementById('pageNum').textContent = 'Strona 2 z 2';
+      }
+    }
+
+    let isLit = true;
+    function extinguishCandle() {
+      if (!isLit) return;
+      isLit = false;
+      document.getElementById('realFlameG').style.display = 'none';
+      document.getElementById('smokeWispG').style.display = 'block';
+      document.getElementById('wickDot').setAttribute('fill', '#6B6B73');
+      document.getElementById('candleHeading').textContent = 'Światło Zostało Zgaszone';
+      document.getElementById('candleBadge').textContent = 'Świeca zgaszona · Marzenie wysłane';
+
+      for (let i = 0; i < 6; i++) {
+        setTimeout(() => {
+          const t = document.getElementById('tile-' + i);
+          if (t) t.classList.add('lit');
+        }, (i + 1) * 350);
+      }
+    }
+
+    function relight() {
+      isLit = true;
+      document.getElementById('realFlameG').style.display = 'block';
+      document.getElementById('smokeWispG').style.display = 'none';
+      document.getElementById('wickDot').setAttribute('fill', '#FF5C8A');
+      document.getElementById('candleHeading').textContent = 'Święty Płomień Życzenia';
+      document.getElementById('candleBadge').textContent = 'Dotknij świecy, aby zgasić płomień';
+      for (let i = 0; i < 6; i++) {
+        const t = document.getElementById('tile-' + i);
+        if (t) t.classList.remove('lit');
+      }
+    }
+  </script>
+</body>
+</html>
